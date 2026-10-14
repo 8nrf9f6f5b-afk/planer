@@ -16,6 +16,13 @@ export interface StoredConfig {
   defaultDurationMinutes?: number;
 }
 
+function sanitizeModel(model?: string): string {
+  if (!model || model.includes('2.5') || model === 'gemini-2.5-flash') {
+    return 'gemini-3.8-flash';
+  }
+  return model;
+}
+
 export function loadConfig(): StoredConfig {
   let fileConfig: StoredConfig = {};
   if (fs.existsSync(CONFIG_FILE)) {
@@ -26,9 +33,12 @@ export function loadConfig(): StoredConfig {
     }
   }
 
+  const rawModel = fileConfig.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const model = sanitizeModel(rawModel);
+
   return {
     geminiApiKey: fileConfig.geminiApiKey || process.env.GEMINI_API_KEY || '',
-    geminiModel: fileConfig.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+    geminiModel: model,
     notionApiKey: fileConfig.notionApiKey || process.env.NOTION_API_KEY || '',
     notionDatabaseId: fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || '',
     defaultAppleCalendar: fileConfig.defaultAppleCalendar || process.env.DEFAULT_APPLE_CALENDAR || 'Privat',
@@ -38,6 +48,9 @@ export function loadConfig(): StoredConfig {
 
 export function saveConfig(newConfig: Partial<StoredConfig>): StoredConfig {
   const current = loadConfig();
+  if (newConfig.geminiModel) {
+    newConfig.geminiModel = sanitizeModel(newConfig.geminiModel);
+  }
   const merged: StoredConfig = {
     ...current,
     ...newConfig,

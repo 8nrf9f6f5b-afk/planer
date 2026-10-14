@@ -143,7 +143,10 @@ app.post('/api/parse-schedule', async (req, res) => {
 
     const config = loadConfig();
     const apiKey = reqApiKey || config.geminiApiKey;
-    const model = reqModel || config.geminiModel || 'gemini-3.8-flash';
+    let model = reqModel || config.geminiModel || 'gemini-3.8-flash';
+    if (model.includes('2.5') || model === 'gemini-2.5-flash') {
+      model = 'gemini-3.8-flash';
+    }
 
     const result = await parseScheduleWithGemini(
       imageBase64,

@@ -10,6 +10,13 @@ export interface ExtractedEventRaw {
   category?: string;
 }
 
+function sanitizeModelName(model?: string): string {
+  if (!model || model.includes('2.5') || model === 'gemini-2.5-flash') {
+    return 'gemini-3.8-flash';
+  }
+  return model;
+}
+
 export async function parseScheduleWithGemini(
   base64Data: string,
   mimeType: string = 'image/png',
@@ -22,7 +29,6 @@ export async function parseScheduleWithGemini(
     const today = referenceDate || new Date().toISOString().slice(0, 10);
     const d = new Date(today);
     
-    // Create demo events relative to reference date
     const d1 = new Date(d);
     const d2 = new Date(d);
     d2.setDate(d2.getDate() + 1);
@@ -94,7 +100,12 @@ export async function parseScheduleWithGemini(
 
   const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
   const refDate = referenceDate || new Date().toISOString().slice(0, 10);
-  const targetModel = modelName || 'gemini-3.8-flash';
+  const targetModel = sanitizeModelName(modelName);
+
+  let effectiveMimeType = mimeType;
+  if (mimeType.includes('svg')) {
+    effectiveMimeType = 'image/png';
+  }
 
   const systemPrompt = `You are a high-accuracy visual calendar & schedule parser using Gemini 3.8.
 Analyze this image (which could be a timetable, calendar screenshot, work shift schedule, syllabus, conference program, or hand-written/printed schedule).
@@ -122,6 +133,15 @@ Respond ONLY with a valid JSON object matching this schema:
 }
 Ensure times are always in 24-hour HH:mm format. If end time is not stated, assume 60 minutes after start time.`;
 
+  const extractAndParseJSON = (text: string) => {
+    const cleaned = text
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+    return JSON.parse(cleaned);
+  };
+
   // 1. Primary: Gemini Interactions API (https://ai.google.dev/gemini-api/docs/get-started)
   try {
     const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions`;
@@ -132,7 +152,7 @@ Ensure times are always in 24-hour HH:mm format. If end time is not stated, assu
         {
           type: 'image',
           data: cleanBase64,
-          mime_type: mimeType,
+          mime_type: effectiveMimeType,
         },
       ],
       response_format: {
@@ -141,14 +161,19 @@ Ensure times are always in 24-hour HH:mm format. If end time is not stated, assu
       },
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const intResponse = await fetch(interactionsUrl, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'x-goog-api-key': apiKey.trim(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(interactionsPayload),
     });
+    clearTimeout(timeoutId);
 
     if (intResponse.ok) {
       const intResult = (await intResponse.json()) as any;
@@ -172,72 +197,86 @@ Ensure times are always in 24-hour HH:mm format. If end time is not stated, assu
       }
 
       if (rawText) {
-        // Strip markdown backticks if returned
-        const cleaned = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-        const parsed = JSON.parse(cleaned);
+        const parsed = extractAndParseJSON(rawText);
         return {
           isDemo: false,
-          rawSummary: parsed.summary || 'Extracted events from schedule',
+          rawSummary: parsed.summary || 'Extracted events with Gemini 3.8 Interactions API',
           events: parsed.events || [],
         };
       }
     }
   } catch (interactionsErr: any) {
-    console.warn('Interactions API call failed, attempting generateContent fallback:', interactionsErr.message);
+    console.warn('Interactions API call note:', interactionsErr.message);
   }
 
-  // 2. Fallback: generateContent endpoint with targetModel (gemini-3.8-flash)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`;
+  // 2. High-availability models list for generateContent (target model first, then resilient fast fallback)
+  const modelsToTry = [
+    targetModel,
+    'gemini-3.5-flash',
+    'gemini-3-flash-preview',
+  ];
 
-  const payload = {
-    contents: [
-      {
-        parts: [
-          { text: systemPrompt },
+  const uniqueModels = Array.from(new Set(modelsToTry));
+  let lastErrorMsg = '';
+
+  for (const modelToCall of uniqueModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToCall}:generateContent?key=${apiKey.trim()}`;
+      const payload = {
+        contents: [
           {
-            inline_data: {
-              mime_type: mimeType,
-              data: cleanBase64,
-            },
+            parts: [
+              { text: systemPrompt },
+              {
+                inline_data: {
+                  mime_type: effectiveMimeType,
+                  data: cleanBase64,
+                },
+              },
+            ],
           },
         ],
-      },
-    ],
-    generationConfig: {
-      response_mime_type: 'application/json',
-      temperature: 0.1,
-    },
-  };
+        generationConfig: {
+          response_mime_type: 'application/json',
+          temperature: 0.1,
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
+        },
+      };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    const msg = errorBody.error?.message || `Gemini API returned HTTP ${response.status}: ${response.statusText}`;
-    throw new Error(msg);
+      if (response.ok) {
+        const result = (await response.json()) as any;
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          const parsed = extractAndParseJSON(text);
+          return {
+            isDemo: false,
+            rawSummary: parsed.summary || 'Extracted events from schedule',
+            events: parsed.events || [],
+          };
+        }
+      }
+
+      const errorBody = await response.json().catch(() => ({}));
+      lastErrorMsg = errorBody.error?.message || `Gemini API HTTP ${response.status}: ${response.statusText}`;
+
+      // If 429 quota or 503 high demand, try the next model in the chain
+      if (response.status === 429 || response.status === 503) {
+        continue;
+      } else {
+        break;
+      }
+    } catch (e: any) {
+      lastErrorMsg = e.message;
+    }
   }
 
-  const result = (await response.json()) as any;
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error('Gemini did not return any text response');
-  }
-
-  try {
-    const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(cleaned);
-    return {
-      isDemo: false,
-      rawSummary: parsed.summary || 'Extracted events from schedule',
-      events: parsed.events || [],
-    };
-  } catch (err: any) {
-    console.error('Failed to parse Gemini JSON output:', text);
-    throw new Error(`Failed to parse extracted schedule JSON: ${err.message}`);
-  }
+  throw new Error(lastErrorMsg || 'Failed to extract schedule with Gemini');
 }
