@@ -13,7 +13,7 @@ import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle } from 'l
 export function App() {
   const [settings, setSettings] = useState<AppSettings>({
     geminiApiKey: '',
-    geminiModel: 'gemini-2.5-flash',
+    geminiModel: 'gemini-3.8-flash',
     notionApiKey: '',
     notionDatabaseId: '',
     defaultAppleCalendar: 'Privat',
@@ -59,7 +59,7 @@ export function App() {
           setSettings((prev) => ({
             ...prev,
             geminiApiKey: cfg.geminiApiKey || '',
-            geminiModel: cfg.geminiModel || 'gemini-2.5-flash',
+            geminiModel: cfg.geminiModel || 'gemini-3.8-flash',
             notionApiKey: cfg.notionApiKey || '',
             notionDatabaseId: cfg.notionDatabaseId || '',
             defaultAppleCalendar: cfg.defaultAppleCalendar || 'Privat',
@@ -113,7 +113,7 @@ export function App() {
         body: JSON.stringify({
           imageBase64: imagePayload,
           mimeType: mimePayload,
-          model: settings.geminiModel,
+          model: settings.geminiModel || 'gemini-3.8-flash',
           referenceDate,
         }),
       });
@@ -152,7 +152,6 @@ export function App() {
     if (selected.length === 0) return;
 
     setIsSyncingApple(true);
-    // Set UI to syncing
     setEvents((prev) =>
       prev.map((e) =>
         e.selected ? { ...e, syncStatus: { ...e.syncStatus, apple: 'syncing' } } : e
@@ -172,7 +171,6 @@ export function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to sync to Apple Calendar');
 
-      // Update sync statuses
       setEvents((prev) =>
         prev.map((e) => {
           const r = data.results?.find((item: any) => item.id === e.id);
@@ -477,7 +475,7 @@ export function App() {
           />
         )}
 
-        {/* Step 3: Sync Actions Panel (Sticky bottom or visible when events exist) */}
+        {/* Step 3: Sync Actions Panel */}
         {events.length > 0 && (
           <SyncActionPanel
             events={events}

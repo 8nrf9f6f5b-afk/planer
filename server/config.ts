@@ -28,7 +28,7 @@ export function loadConfig(): StoredConfig {
 
   return {
     geminiApiKey: fileConfig.geminiApiKey || process.env.GEMINI_API_KEY || '',
-    geminiModel: fileConfig.geminiModel || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    geminiModel: fileConfig.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
     notionApiKey: fileConfig.notionApiKey || process.env.NOTION_API_KEY || '',
     notionDatabaseId: fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || '',
     defaultAppleCalendar: fileConfig.defaultAppleCalendar || process.env.DEFAULT_APPLE_CALENDAR || 'Privat',

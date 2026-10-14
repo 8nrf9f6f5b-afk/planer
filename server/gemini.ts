@@ -14,10 +14,10 @@ export async function parseScheduleWithGemini(
   base64Data: string,
   mimeType: string = 'image/png',
   apiKey?: string,
-  modelName: string = 'gemini-2.5-flash',
+  modelName: string = 'gemini-3.8-flash',
   referenceDate?: string
 ): Promise<{ events: ExtractedEventRaw[]; rawSummary?: string; isDemo?: boolean }> {
-  // If no API key is provided, return a simulated demo extraction and inform the user
+  // If no API key is provided, return simulated demo extraction
   if (!apiKey || apiKey.trim() === '') {
     const today = referenceDate || new Date().toISOString().slice(0, 10);
     const d = new Date(today);
@@ -94,9 +94,9 @@ export async function parseScheduleWithGemini(
 
   const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
   const refDate = referenceDate || new Date().toISOString().slice(0, 10);
-  const targetModel = modelName || 'gemini-2.5-flash';
+  const targetModel = modelName || 'gemini-3.8-flash';
 
-  const systemPrompt = `You are a high-accuracy visual calendar & schedule parser.
+  const systemPrompt = `You are a high-accuracy visual calendar & schedule parser using Gemini 3.8.
 Analyze this image (which could be a timetable, calendar screenshot, work shift schedule, syllabus, conference program, or hand-written/printed schedule).
 
 CURRENT REFERENCE DATE: ${refDate} (Today's date).
@@ -122,6 +122,71 @@ Respond ONLY with a valid JSON object matching this schema:
 }
 Ensure times are always in 24-hour HH:mm format. If end time is not stated, assume 60 minutes after start time.`;
 
+  // 1. Primary: Gemini Interactions API (https://ai.google.dev/gemini-api/docs/get-started)
+  try {
+    const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions`;
+    const interactionsPayload = {
+      model: targetModel,
+      input: [
+        { type: 'text', text: systemPrompt },
+        {
+          type: 'image',
+          data: cleanBase64,
+          mime_type: mimeType,
+        },
+      ],
+      response_format: {
+        type: 'text',
+        mime_type: 'application/json',
+      },
+    };
+
+    const intResponse = await fetch(interactionsUrl, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey.trim(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(interactionsPayload),
+    });
+
+    if (intResponse.ok) {
+      const intResult = (await intResponse.json()) as any;
+      let rawText = intResult.output_text;
+
+      if (!rawText && intResult.steps) {
+        for (const step of intResult.steps) {
+          if (step.content) {
+            for (const part of step.content) {
+              if (part.text) {
+                rawText = part.text;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (!rawText && intResult.outputs?.[0]?.text) {
+        rawText = intResult.outputs[0].text;
+      }
+
+      if (rawText) {
+        // Strip markdown backticks if returned
+        const cleaned = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+        return {
+          isDemo: false,
+          rawSummary: parsed.summary || 'Extracted events from schedule',
+          events: parsed.events || [],
+        };
+      }
+    }
+  } catch (interactionsErr: any) {
+    console.warn('Interactions API call failed, attempting generateContent fallback:', interactionsErr.message);
+  }
+
+  // 2. Fallback: generateContent endpoint with targetModel (gemini-3.8-flash)
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`;
 
   const payload = {
@@ -164,7 +229,8 @@ Ensure times are always in 24-hour HH:mm format. If end time is not stated, assu
   }
 
   try {
-    const parsed = JSON.parse(text);
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    const parsed = JSON.parse(cleaned);
     return {
       isDemo: false,
       rawSummary: parsed.summary || 'Extracted events from schedule',

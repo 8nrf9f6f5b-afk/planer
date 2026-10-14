@@ -25,7 +25,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTestNotion,
 }) => {
   const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey);
-  const [geminiModel, setGeminiModel] = useState(settings.geminiModel || 'gemini-2.5-flash');
+  const [geminiModel, setGeminiModel] = useState(settings.geminiModel || 'gemini-3.8-flash');
   const [notionApiKey, setNotionApiKey] = useState(settings.notionApiKey);
   const [notionDatabaseId, setNotionDatabaseId] = useState(settings.notionDatabaseId);
   const [defaultAppleCalendar, setDefaultAppleCalendar] = useState(settings.defaultAppleCalendar);
@@ -45,7 +45,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   useEffect(() => {
     setGeminiApiKey(settings.geminiApiKey);
-    setGeminiModel(settings.geminiModel || 'gemini-2.5-flash');
+    setGeminiModel(settings.geminiModel || 'gemini-3.8-flash');
     setNotionApiKey(settings.notionApiKey);
     setNotionDatabaseId(settings.notionDatabaseId);
     setDefaultAppleCalendar(settings.defaultAppleCalendar);
@@ -186,25 +186,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-300">
-                  Vision Model
+                  Vision Model (Interactions API)
                 </label>
                 <select
                   value={geminiModel}
                   onChange={(e) => setGeminiModel(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-fuchsia-500"
                 >
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Fastest, latest visual reasoning)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (High speed, stable)</option>
+                  <option value="gemini-3.8-flash">gemini-3.8-flash (Recommended: Interactions API &amp; fast reasoning)</option>
+                  <option value="gemini-3.8-pro">gemini-3.8-pro (Complex handwritten &amp; dense timetables)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (Legacy fallback)</option>
                 </select>
               </div>
 
               <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-2">
                 <p className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-fuchsia-400" />
-                  How Gemini schedule extraction works:
+                  Interactions API + Gemini 3.8:
                 </p>
                 <p>
-                  Planer sends the image to Gemini Vision with structured JSON mode. Gemini reads start &amp; end times, dates, room numbers, course names, and meeting links, and resolves relative days into precise ISO calendar timestamps.
+                  Planer uses Google&rsquo;s <b>Interactions API</b> (<code>/v1beta/interactions</code>) with Gemini 3.8 Flash to parse schedules with high accuracy, structured JSON extraction, and instant speed.
                 </p>
               </div>
             </div>

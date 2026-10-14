@@ -25,7 +25,7 @@ app.get('/api/config', (req, res) => {
   res.json({
     geminiApiKey: config.geminiApiKey ? `${config.geminiApiKey.slice(0, 6)}...${config.geminiApiKey.slice(-4)}` : '',
     hasGeminiApiKey: !!config.geminiApiKey,
-    geminiModel: config.geminiModel,
+    geminiModel: config.geminiModel || 'gemini-3.8-flash',
     notionApiKey: config.notionApiKey ? `${config.notionApiKey.slice(0, 7)}...${config.notionApiKey.slice(-4)}` : '',
     hasNotionApiKey: !!config.notionApiKey,
     notionDatabaseId: config.notionDatabaseId,
@@ -143,7 +143,7 @@ app.post('/api/parse-schedule', async (req, res) => {
 
     const config = loadConfig();
     const apiKey = reqApiKey || config.geminiApiKey;
-    const model = reqModel || config.geminiModel || 'gemini-2.5-flash';
+    const model = reqModel || config.geminiModel || 'gemini-3.8-flash';
 
     const result = await parseScheduleWithGemini(
       imageBase64,

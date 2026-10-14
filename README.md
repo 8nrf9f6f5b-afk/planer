@@ -9,7 +9,7 @@
 ## ✨ Features
 
 - 📸 **Instant Image Drop & Clipboard Paste (`Cmd + V`)**: Just take a screenshot of your schedule (`Cmd + Shift + 4`) and paste directly into Planer.
-- 🧠 **Gemini Vision AI Engine**: Extracts dates, start & end times, locations, course codes, and descriptions with high precision.
+- 🧠 **Gemini 3.8 Flash Vision Engine (Interactions API)**: Powered by the latest Google Gemini 3.8 Flash multimodal model and the Interactions API (`/v1beta/interactions`) for high precision, structured event extraction, and fast reasoning.
 - 🍏 **Native Apple Calendar Integration**: Uses native macOS EventKit / AppleScript to write events directly into Apple `Calendar.app` without requiring iCloud passwords or third-party bridges.
 - 📓 **Notion Database Integration**: Ports events directly into your Notion Calendar or Tasks Database with automatic property detection (`Date`, `Title`, `Location`, `Description`).
 - ⚡ **"Port to Both Instantly"**: 1-click button that populates your Apple Calendar and Notion database simultaneously.
@@ -34,7 +34,7 @@ Click **Settings** in the top navigation bar:
 
 1. **Google Gemini Vision API**:
    - Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
-   - Enter your key and choose your model (`gemini-2.5-flash` or `gemini-1.5-flash`).
+   - Enter your key and choose your model (`gemini-3.8-flash` or `gemini-3.8-pro`).
 2. **Apple Calendar**:
    - Select your target macOS Calendar (e.g. `Privat`, `Arbeit`) from the auto-detected list.
 3. **Notion**:
@@ -43,10 +43,10 @@ Click **Settings** in the top navigation bar:
    - In Notion, share your database page with your integration (`...` &rarr; `Connections` &rarr; add integration).
    - Click **Test Connection** to verify.
 
-Alternatively, you can create a `.env` file in the project root:
+Alternatively, you can configure your `.env` file in the project root:
 ```env
 GEMINI_API_KEY=AIzaSy...
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 NOTION_API_KEY=secret_...
 NOTION_DATABASE_ID=your_database_id_or_url
 DEFAULT_APPLE_CALENDAR=Privat
@@ -58,6 +58,6 @@ DEFAULT_APPLE_CALENDAR=Privat
 
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS + Lucide Icons + Canvas Confetti
 - **Backend**: Express + Node.js
-- **macOS Calendar Engine**: `server/apple-calendar.ts` using `osascript` EventKit bindings
+- **Vision Engine**: `server/gemini.ts` using Google Gemini 3.8 Flash with the Interactions API (`/v1beta/interactions`) and fallback to generateContent
+- **macOS Calendar Engine**: `server/apple-calendar.ts` using native `osascript` EventKit bindings
 - **Notion Engine**: `server/notion.ts` using official Notion REST API with automatic schema resolution
-- **Vision Engine**: `server/gemini.ts` using Gemini multimodal structured JSON extraction
