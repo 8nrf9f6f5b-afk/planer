@@ -1,5 +1,8 @@
 import React from 'react';
-import { Calendar as CalendarIcon, Sparkles, Settings as SettingsIcon, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
+import { 
+  Calendar as CalendarIcon, Sparkles, Settings as SettingsIcon, 
+  CheckCircle2, AlertCircle, Coffee, Heart, ExternalLink 
+} from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface HeaderProps {
@@ -17,6 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenSamples,
 }) => {
+  const donationUrl = settings.donationUrl || 'https://ko-fi.com';
+
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -43,9 +48,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Status badges & actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Target Status Badges */}
-          <div className="hidden md:flex items-center gap-2 text-xs">
+          <div className="hidden lg:flex items-center gap-2 text-xs">
             {/* Apple Cal Status */}
             <div
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border ${
@@ -87,6 +92,19 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Try Samples</span>
           </button>
+
+          {/* Ko-fi / Buy Me a Coffee Button */}
+          <a
+            href={donationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+            title="Support this project on Ko-fi or Buy Me a Coffee"
+          >
+            <Coffee className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
+            <span className="hidden sm:inline">Support</span>
+            <span className="sm:hidden">☕</span>
+          </a>
 
           {/* Settings Button */}
           <button

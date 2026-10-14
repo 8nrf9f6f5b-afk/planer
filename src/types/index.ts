@@ -25,6 +25,7 @@ export interface AppSettings {
   notionDatabaseId: string;
   defaultAppleCalendar: string;
   defaultDurationMinutes: number;
+  donationUrl?: string;
 }
 
 export interface AppleCalendarInfo {
@@ -48,5 +49,4 @@ export interface ParseScheduleResponse {
   events: CalendarEvent[];
   rawSummary?: string;
   detectedTimezone?: string;
-  isDemo?: boolean;
 }

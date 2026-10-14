@@ -31,11 +31,12 @@ app.get('/api/config', (req, res) => {
     notionDatabaseId: config.notionDatabaseId,
     defaultAppleCalendar: config.defaultAppleCalendar,
     defaultDurationMinutes: config.defaultDurationMinutes,
+    donationUrl: config.donationUrl || '',
   });
 });
 
 app.post('/api/config', (req, res) => {
-  const { geminiApiKey, geminiModel, notionApiKey, notionDatabaseId, defaultAppleCalendar, defaultDurationMinutes } = req.body;
+  const { geminiApiKey, geminiModel, notionApiKey, notionDatabaseId, defaultAppleCalendar, defaultDurationMinutes, donationUrl } = req.body;
   const updates: any = {};
   if (geminiApiKey !== undefined) updates.geminiApiKey = geminiApiKey;
   if (geminiModel !== undefined) updates.geminiModel = geminiModel;
@@ -43,6 +44,7 @@ app.post('/api/config', (req, res) => {
   if (notionDatabaseId !== undefined) updates.notionDatabaseId = notionDatabaseId;
   if (defaultAppleCalendar !== undefined) updates.defaultAppleCalendar = defaultAppleCalendar;
   if (defaultDurationMinutes !== undefined) updates.defaultDurationMinutes = defaultDurationMinutes;
+  if (donationUrl !== undefined) updates.donationUrl = donationUrl;
 
   const saved = saveConfig(updates);
   res.json({ success: true, config: saved });

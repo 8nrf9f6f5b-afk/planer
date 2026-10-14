@@ -14,6 +14,7 @@ export interface StoredConfig {
   notionDatabaseId?: string;
   defaultAppleCalendar?: string;
   defaultDurationMinutes?: number;
+  donationUrl?: string;
 }
 
 function sanitizeModel(model?: string): string {
@@ -43,6 +44,7 @@ export function loadConfig(): StoredConfig {
     notionDatabaseId: fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || '',
     defaultAppleCalendar: fileConfig.defaultAppleCalendar || process.env.DEFAULT_APPLE_CALENDAR || 'Privat',
     defaultDurationMinutes: fileConfig.defaultDurationMinutes || 60,
+    donationUrl: fileConfig.donationUrl || process.env.DONATION_URL || '',
   };
 }
 

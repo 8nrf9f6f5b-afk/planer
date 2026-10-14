@@ -8,7 +8,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { SampleSchedulesModal } from './components/SampleSchedulesModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
-import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart } from 'lucide-react';
 
 export function App() {
   const [settings, setSettings] = useState<AppSettings>({
@@ -18,6 +18,7 @@ export function App() {
     notionDatabaseId: '',
     defaultAppleCalendar: 'Privat',
     defaultDurationMinutes: 60,
+    donationUrl: '',
   });
 
   const [calendars, setCalendars] = useState<string[]>(['Privat', 'Arbeit']);
@@ -56,13 +57,17 @@ export function App() {
         const configRes = await fetch('/api/config');
         if (configRes.ok) {
           const cfg = await configRes.json();
+          let chosenModel = cfg.geminiModel || 'gemini-3.8-flash';
+          if (chosenModel.includes('2.5')) chosenModel = 'gemini-3.8-flash';
+
           setSettings((prev) => ({
             ...prev,
             geminiApiKey: cfg.geminiApiKey || '',
-            geminiModel: cfg.geminiModel || 'gemini-3.8-flash',
+            geminiModel: chosenModel,
             notionApiKey: cfg.notionApiKey || '',
             notionDatabaseId: cfg.notionDatabaseId || '',
             defaultAppleCalendar: cfg.defaultAppleCalendar || 'Privat',
+            donationUrl: cfg.donationUrl || '',
           }));
           setHasGeminiKey(cfg.hasGeminiApiKey);
           setNotionReady(cfg.hasNotionApiKey && !!cfg.notionDatabaseId);
@@ -424,6 +429,8 @@ export function App() {
     return data;
   };
 
+  const supportLink = settings.donationUrl || 'https://ko-fi.com';
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-fuchsia-500 selection:text-white">
       {/* Toast Notifications */}
@@ -517,8 +524,28 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
-        <p>Planer — Native macOS Apple Calendar &amp; Notion Schedule Importer</p>
+      <footer className="border-t border-slate-800/80 bg-slate-950/80 py-6 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <p>Planer — Native macOS Apple Calendar &amp; Notion Schedule Importer</p>
+          <div className="flex items-center gap-4">
+            <a
+              href={supportLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-amber-400/90 hover:text-amber-300 transition font-medium"
+            >
+              <Coffee className="w-3.5 h-3.5" />
+              <span>Buy me a coffee / Ko-fi</span>
+            </a>
+            <span>•</span>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="hover:text-slate-300 transition"
+            >
+              Configure Tip Jar
+            </button>
+          </div>
+        </div>
       </footer>
 
       {/* Settings Modal */}

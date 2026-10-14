@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Key, Calendar, Database, CheckCircle2, AlertCircle, 
-  ExternalLink, Loader2, RefreshCw, Eye, EyeOff, Sparkles 
+  ExternalLink, Loader2, RefreshCw, Eye, EyeOff, Sparkles, Coffee, Heart 
 } from 'lucide-react';
 import { AppSettings, NotionDatabaseInfo } from '../types';
 
@@ -29,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [notionApiKey, setNotionApiKey] = useState(settings.notionApiKey);
   const [notionDatabaseId, setNotionDatabaseId] = useState(settings.notionDatabaseId);
   const [defaultAppleCalendar, setDefaultAppleCalendar] = useState(settings.defaultAppleCalendar);
+  const [donationUrl, setDonationUrl] = useState(settings.donationUrl || '');
 
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showNotionKey, setShowNotionKey] = useState(false);
@@ -41,7 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'gemini' | 'apple' | 'notion'>('gemini');
+  const [activeTab, setActiveTab] = useState<'gemini' | 'apple' | 'notion' | 'support'>('gemini');
 
   useEffect(() => {
     setGeminiApiKey(settings.geminiApiKey);
@@ -49,6 +50,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNotionApiKey(settings.notionApiKey);
     setNotionDatabaseId(settings.notionDatabaseId);
     setDefaultAppleCalendar(settings.defaultAppleCalendar);
+    setDonationUrl(settings.donationUrl || '');
   }, [settings]);
 
   if (!isOpen) return null;
@@ -78,6 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         notionDatabaseId,
         defaultAppleCalendar,
         defaultDurationMinutes: settings.defaultDurationMinutes || 60,
+        donationUrl,
       });
       onClose();
     } finally {
@@ -96,7 +99,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-100">Calendar &amp; AI Settings</h3>
-              <p className="text-xs text-slate-400">Configure your vision model, Apple Calendar, and Notion integration</p>
+              <p className="text-xs text-slate-400">Configure your vision model, Apple Calendar, Notion, and tip jar</p>
             </div>
           </div>
           <button
@@ -108,10 +111,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 px-6 bg-slate-950/20">
+        <div className="flex border-b border-slate-800 px-6 bg-slate-950/20 overflow-x-auto">
           <button
             onClick={() => setActiveTab('gemini')}
-            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
               activeTab === 'gemini'
                 ? 'border-fuchsia-500 text-fuchsia-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -123,7 +126,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('apple')}
-            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
               activeTab === 'apple'
                 ? 'border-fuchsia-500 text-fuchsia-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -135,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('notion')}
-            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
               activeTab === 'notion'
                 ? 'border-fuchsia-500 text-fuchsia-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -143,6 +146,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <span>📓</span>
             <span>Notion Database</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('support')}
+            className={`py-3 px-4 text-xs font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
+              activeTab === 'support'
+                ? 'border-fuchsia-500 text-amber-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Coffee className="w-4 h-4 text-amber-400" />
+            <span>Ko-fi / Support Link</span>
           </button>
         </div>
 
@@ -195,7 +210,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   <option value="gemini-3.8-flash">gemini-3.8-flash (Recommended: Interactions API &amp; fast reasoning)</option>
                   <option value="gemini-3.8-pro">gemini-3.8-pro (Complex handwritten &amp; dense timetables)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (Legacy fallback)</option>
+                  <option value="gemini-3.5-flash">gemini-3.5-flash (High speed alternative)</option>
                 </select>
               </div>
 
@@ -264,7 +279,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 3: NOTION */}
           {activeTab === 'notion' && (
             <div className="space-y-5">
-              {/* Notion Token */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-300">
                   Notion Internal Integration Token
@@ -298,7 +312,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Database ID / Link */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-300">
                   Notion Database ID or URL
@@ -315,7 +328,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
               </div>
 
-              {/* Test Connection Button & Result */}
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -346,7 +358,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
               </div>
 
-              {/* Setup guide */}
               <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-2">
                 <p className="font-semibold text-slate-300">
                   3-Step Notion Database Linking:
@@ -356,6 +367,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <li>Click the <code>...</code> menu at the top-right &rarr; <b>Connections</b>.</li>
                   <li>Search for and add your integration to grant Planer write access.</li>
                 </ol>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: SUPPORT / TIP JAR */}
+          {activeTab === 'support' && (
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Your Ko-fi or Buy Me a Coffee URL
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={donationUrl}
+                    onChange={(e) => setDonationUrl(e.target.value)}
+                    placeholder="https://ko-fi.com/yourname or https://buymeacoffee.com/yourname"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+                <p className="text-xs text-slate-400">
+                  This powers the &ldquo;Support ☕&rdquo; button in the header and footer of your site.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <a
+                  href="https://ko-fi.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition group flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
+                      <Coffee className="w-4 h-4" />
+                      Ko-fi
+                    </span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Free tip jar &amp; memberships with 0% platform fee on donations.
+                  </p>
+                </a>
+
+                <a
+                  href="https://buymeacoffee.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition group flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
+                      <span>☕</span>
+                      Buy Me a Coffee
+                    </span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Simple, friendly page for supporters to buy you a coffee.
+                  </p>
+                </a>
               </div>
             </div>
           )}
