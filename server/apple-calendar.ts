@@ -25,6 +25,7 @@ function escapeAppleScriptString(str: string): string {
 }
 
 export async function ensureCalendarRunning(): Promise<void> {
+  if (process.platform !== 'darwin') return;
   try {
     await execPromise('open -g -a Calendar');
     await new Promise((r) => setTimeout(r, 800));
@@ -34,6 +35,9 @@ export async function ensureCalendarRunning(): Promise<void> {
 }
 
 export async function getAppleCalendars(): Promise<string[]> {
+  if (process.platform !== 'darwin') {
+    return ['Apple Calendar (via .ics)', 'Privat', 'Arbeit'];
+  }
   await ensureCalendarRunning();
   const script = `tell application "Calendar" to get name of calendars`;
   try {
@@ -54,6 +58,13 @@ export async function addEventToAppleCalendar(
   event: AppleSyncEvent,
   calendarName: string = 'Privat'
 ): Promise<{ success: boolean; eventId?: string; error?: string }> {
+  if (process.platform !== 'darwin') {
+    return {
+      success: false,
+      error: 'Direct background Apple Calendar automation requires macOS. On the web, click "Export .ics" to open events directly in Apple Calendar!',
+    };
+  }
+
   try {
     const [startYear, startMonth, startDay] = (
       event.startDate || new Date().toISOString().slice(0, 10)
@@ -113,13 +124,23 @@ export async function addBatchEventsToAppleCalendar(
   events: AppleSyncEvent[],
   calendarName: string = 'Privat'
 ): Promise<Array<{ id: string; success: boolean; eventId?: string; error?: string }>> {
+  if (process.platform !== 'darwin') {
+    return events.map((ev) => ({
+      id: ev.id,
+      success: false,
+      error: 'Direct background Apple Calendar sync requires macOS. On the web, use "Export .ics" to open directly in Apple Calendar!',
+    }));
+  }
+
   await ensureCalendarRunning();
   const results = [];
   for (const event of events) {
     const res = await addEventToAppleCalendar(event, calendarName);
     results.push({
       id: event.id,
-      ...res,
+      success: res.success,
+      eventId: res.eventId,
+      error: res.error,
     });
   }
   return results;

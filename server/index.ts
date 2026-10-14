@@ -196,6 +196,10 @@ app.post('/api/export/ics', (req, res) => {
   }
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Planer API server running at http://127.0.0.1:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '127.0.0.1', () => {
+    console.log(`Planer API server running at http://127.0.0.1:${PORT}`);
+  });
+}
+
+export default app;

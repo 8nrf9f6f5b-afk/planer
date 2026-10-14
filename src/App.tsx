@@ -6,6 +6,7 @@ import { EventsPreview } from './components/EventsPreview';
 import { SyncActionPanel } from './components/SyncActionPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { SampleSchedulesModal } from './components/SampleSchedulesModal';
+import { TipModal } from './components/TipModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
 import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart } from 'lucide-react';
@@ -35,6 +36,17 @@ export function App() {
   const [isSamplesOpen, setIsSamplesOpen] = useState(false);
   const [notionReady, setNotionReady] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
+
+  // Tip Modal State
+  const [tipModalState, setTipModalState] = useState<{
+    isOpen: boolean;
+    syncedCount: number;
+    destination: string;
+  }>({
+    isOpen: false,
+    syncedCount: 0,
+    destination: 'Apple Calendar & Notion',
+  });
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -199,6 +211,15 @@ export function App() {
         `Apple Calendar Port Complete!`,
         `Successfully added ${data.successCount} of ${data.total} events to "${data.calendar}".`
       );
+
+      // Trigger Tip Modal after brief celebration delay
+      setTimeout(() => {
+        setTipModalState({
+          isOpen: true,
+          syncedCount: data.successCount,
+          destination: 'Apple Calendar',
+        });
+      }, 1200);
     } catch (err: any) {
       addToast('error', 'Apple Calendar Error', err.message);
       setEvents((prev) =>
@@ -260,6 +281,15 @@ export function App() {
         `Notion Port Complete!`,
         `Created ${data.successCount} pages in "${data.databaseTitle}".`
       );
+
+      // Trigger Tip Modal after brief celebration delay
+      setTimeout(() => {
+        setTipModalState({
+          isOpen: true,
+          syncedCount: data.successCount,
+          destination: 'Notion',
+        });
+      }, 1200);
     } catch (err: any) {
       addToast('error', 'Notion Error', err.message);
       setEvents((prev) =>
@@ -564,6 +594,15 @@ export function App() {
         isOpen={isSamplesOpen}
         onClose={() => setIsSamplesOpen(false)}
         onSelectSample={handleSelectSample}
+      />
+
+      {/* Post-Sync Celebration Tip Modal */}
+      <TipModal
+        isOpen={tipModalState.isOpen}
+        onClose={() => setTipModalState((prev) => ({ ...prev, isOpen: false }))}
+        donationUrl={settings.donationUrl}
+        syncedCount={tipModalState.syncedCount}
+        destination={tipModalState.destination}
       />
     </div>
   );
