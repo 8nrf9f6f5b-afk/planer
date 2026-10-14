@@ -1,0 +1,51 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const CONFIG_FILE = path.join(os.homedir(), '.planer-config.json');
+
+export interface StoredConfig {
+  geminiApiKey?: string;
+  geminiModel?: string;
+  notionApiKey?: string;
+  notionDatabaseId?: string;
+  defaultAppleCalendar?: string;
+  defaultDurationMinutes?: number;
+}
+
+export function loadConfig(): StoredConfig {
+  let fileConfig: StoredConfig = {};
+  if (fs.existsSync(CONFIG_FILE)) {
+    try {
+      fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    } catch (e) {
+      console.error('Error reading config file:', e);
+    }
+  }
+
+  return {
+    geminiApiKey: fileConfig.geminiApiKey || process.env.GEMINI_API_KEY || '',
+    geminiModel: fileConfig.geminiModel || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    notionApiKey: fileConfig.notionApiKey || process.env.NOTION_API_KEY || '',
+    notionDatabaseId: fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || '',
+    defaultAppleCalendar: fileConfig.defaultAppleCalendar || process.env.DEFAULT_APPLE_CALENDAR || 'Privat',
+    defaultDurationMinutes: fileConfig.defaultDurationMinutes || 60,
+  };
+}
+
+export function saveConfig(newConfig: Partial<StoredConfig>): StoredConfig {
+  const current = loadConfig();
+  const merged: StoredConfig = {
+    ...current,
+    ...newConfig,
+  };
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error writing config file:', e);
+  }
+  return merged;
+}

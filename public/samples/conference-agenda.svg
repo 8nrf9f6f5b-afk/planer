@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="800" height="480" style="background:#0f0f17; font-family:system-ui, -apple-system, sans-serif;">
+  <rect width="800" height="70" fill="#181825"/>
+  <text x="32" y="44" fill="#a855f7" font-size="22" font-weight="800">AI Summit 2026 — Day Schedule</text>
+  <text x="630" y="44" fill="#94a3b8" font-size="14">Main Convention Center</text>
+
+  <g transform="translate(32, 90)">
+    <!-- Event 1 -->
+    <rect x="0" y="0" width="736" height="60" rx="8" fill="#1e1e2e" stroke="#2e2e3e"/>
+    <text x="24" y="35" fill="#f43f5e" font-size="14" font-weight="700">09:00 - 10:00</text>
+    <text x="160" y="27" fill="#ffffff" font-size="15" font-weight="600">Opening Keynote: Frontier Models &amp; Autonomy</text>
+    <text x="160" y="47" fill="#94a3b8" font-size="12">Grand Ballroom A • Dr. Elena Rostova</text>
+
+    <!-- Event 2 -->
+    <rect x="0" y="75" width="736" height="60" rx="8" fill="#1e1e2e" stroke="#2e2e3e"/>
+    <text x="24" y="110" fill="#3b82f6" font-size="14" font-weight="700">10:30 - 12:00</text>
+    <text x="160" y="102" fill="#ffffff" font-size="15" font-weight="600">Panel: Multimodal Reasoning &amp; Real-Time Agents</text>
+    <text x="160" y="122" fill="#94a3b8" font-size="12">Hall B • Featuring DeepMind &amp; Stanford Researchers</text>
+
+    <!-- Event 3 -->
+    <rect x="0" y="150" width="736" height="60" rx="8" fill="#1e1e2e" stroke="#2e2e3e"/>
+    <text x="24" y="185" fill="#10b981" font-size="14" font-weight="700">12:00 - 13:30</text>
+    <text x="160" y="177" fill="#ffffff" font-size="15" font-weight="600">Networking Luncheon &amp; VIP Founder Meetup</text>
+    <text x="160" y="197" fill="#94a3b8" font-size="12">Garden Terrace Pavilion • Lunch Provided</text>
+
+    <!-- Event 4 -->
+    <rect x="0" y="225" width="736" height="60" rx="8" fill="#1e1e2e" stroke="#2e2e3e"/>
+    <text x="24" y="260" fill="#f59e0b" font-size="14" font-weight="700">14:00 - 16:00</text>
+    <text x="160" y="252" fill="#ffffff" font-size="15" font-weight="600">Hands-on Workshop: Building Local Agent Tools</text>
+    <text x="160" y="272" fill="#94a3b8" font-size="12">Lab 4B • Bring your laptop</text>
+
+    <!-- Event 5 -->
+    <rect x="0" y="300" width="736" height="60" rx="8" fill="#1e1e2e" stroke="#2e2e3e"/>
+    <text x="24" y="335" fill="#8b5cf6" font-size="14" font-weight="700">16:30 - 18:00</text>
+    <text x="160" y="327" fill="#ffffff" font-size="15" font-weight="600">Evening Mixer &amp; Demo Showcase</text>
+    <text x="160" y="347" fill="#94a3b8" font-size="12">Exhibition Center Floor • Drinks &amp; Networking</text>
+  </g>
+</svg>
