@@ -67,14 +67,20 @@ app.get('/api/apple/calendars', async (req, res) => {
 
 app.post('/api/apple/sync', async (req, res) => {
   try {
-    const { events, calendarName } = req.body;
+    const { events, calendarName, includeRoomInTitle } = req.body;
     if (!Array.isArray(events) || events.length === 0) {
       return res.status(400).json({ error: 'No events provided to sync' });
     }
     const config = loadConfig();
     const targetCalendar = calendarName || config.defaultAppleCalendar || 'Privat';
 
-    const results = await addBatchEventsToAppleCalendar(events, targetCalendar);
+    // Inject includeRoomInTitle if provided
+    const preparedEvents = events.map((ev) => ({
+      ...ev,
+      includeRoomInTitle: includeRoomInTitle !== undefined ? includeRoomInTitle : true,
+    }));
+
+    const results = await addBatchEventsToAppleCalendar(preparedEvents, targetCalendar);
     const successCount = results.filter(r => r.success).length;
 
     res.json({
@@ -108,7 +114,7 @@ app.post('/api/notion/test', async (req, res) => {
 
 app.post('/api/notion/sync', async (req, res) => {
   try {
-    const { events, apiKey: reqApiKey, databaseId: reqDbId } = req.body;
+    const { events, apiKey: reqApiKey, databaseId: reqDbId, includeRoomInTitle } = req.body;
     if (!Array.isArray(events) || events.length === 0) {
       return res.status(400).json({ error: 'No events provided to sync' });
     }
@@ -121,7 +127,12 @@ app.post('/api/notion/sync', async (req, res) => {
 
     // Validate database and get matched properties
     const dbInfo = await testNotionConnection(apiKey, databaseId);
-    const results = await addBatchEventsToNotion(apiKey, databaseId, events, dbInfo.matchedProperties);
+    const preparedEvents = events.map((ev) => ({
+      ...ev,
+      includeRoomInTitle: includeRoomInTitle !== undefined ? includeRoomInTitle : true,
+    }));
+
+    const results = await addBatchEventsToNotion(apiKey, databaseId, preparedEvents, dbInfo.matchedProperties);
     const successCount = results.filter(r => r.success).length;
 
     res.json({
@@ -183,12 +194,14 @@ app.post('/api/parse-schedule', async (req, res) => {
 // ICS Export
 app.post('/api/export/ics', (req, res) => {
   try {
-    const { events, filename } = req.body;
+    const { events, filename, includeRoomInTitle } = req.body;
     if (!Array.isArray(events) || events.length === 0) {
       return res.status(400).json({ error: 'No events provided' });
     }
 
-    const icsContent = generateICS(events);
+    const icsContent = generateICS(events, {
+      includeRoomInTitle: includeRoomInTitle !== undefined ? includeRoomInTitle : true,
+    });
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename || 'planer-schedule.ics'}"`);
     res.send(icsContent);

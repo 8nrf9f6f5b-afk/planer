@@ -7,6 +7,11 @@ export interface ICSEvent {
   allDay?: boolean;
   location?: string;
   description?: string;
+  includeRoomInTitle?: boolean;
+}
+
+export interface ICSOptions {
+  includeRoomInTitle?: boolean;
 }
 
 function formatICSDate(dateStr: string, timeStr?: string, allDay?: boolean): string {
@@ -18,7 +23,7 @@ function formatICSDate(dateStr: string, timeStr?: string, allDay?: boolean): str
   return `${y}${m}${d}T${hh || '00'}${mm || '00'}00`;
 }
 
-export function generateICS(events: ICSEvent[]): string {
+export function generateICS(events: ICSEvent[], options?: ICSOptions): string {
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -44,12 +49,33 @@ export function generateICS(events: ICSEvent[]): string {
       lines.push(`DTEND:${formatICSDate(ev.endDate || ev.startDate, ev.endTime || '10:00')}`);
     }
 
-    lines.push(`SUMMARY:${(ev.title || 'Untitled').replace(/\n/g, ' ')}`);
-    if (ev.description) {
-      lines.push(`DESCRIPTION:${ev.description.replace(/\n/g, '\\n')}`);
+    const locTrimmed = (ev.location || '').trim();
+    const shouldAddRoomToTitle =
+      (options?.includeRoomInTitle ?? ev.includeRoomInTitle ?? true) &&
+      locTrimmed !== '' &&
+      !ev.title.toLowerCase().includes(locTrimmed.toLowerCase());
+
+    const displayTitle = shouldAddRoomToTitle
+      ? `${ev.title} (${locTrimmed})`
+      : (ev.title || 'Untitled');
+
+    lines.push(`SUMMARY:${displayTitle.replace(/\n/g, ' ')}`);
+
+    // Description with prominent Room/Location note
+    const descParts: string[] = [];
+    if (locTrimmed) {
+      descParts.push(`📍 Room: ${locTrimmed}`);
     }
-    if (ev.location) {
-      lines.push(`LOCATION:${ev.location.replace(/\n/g, ' ')}`);
+    if (ev.description && ev.description.trim()) {
+      descParts.push(ev.description.trim());
+    }
+
+    if (descParts.length > 0) {
+      lines.push(`DESCRIPTION:${descParts.join('\\n\\n').replace(/\n/g, '\\n')}`);
+    }
+
+    if (locTrimmed) {
+      lines.push(`LOCATION:${locTrimmed.replace(/\n/g, ' ')}`);
     }
 
     lines.push('END:VEVENT');

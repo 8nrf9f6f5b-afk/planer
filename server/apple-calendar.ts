@@ -13,6 +13,7 @@ export interface AppleSyncEvent {
   allDay?: boolean;
   location?: string;
   description?: string;
+  includeRoomInTitle?: boolean;
 }
 
 function escapeAppleScriptString(str: string): string {
@@ -78,9 +79,28 @@ export async function addEventToAppleCalendar(
     const [endYear, endMonth, endDay] = endD.split('-').map(Number);
     const [endH, endM] = (event.endTime || '10:00').split(':').map(Number);
 
-    const titleEscaped = escapeAppleScriptString(event.title || 'Untitled Event');
-    const descEscaped = escapeAppleScriptString(event.description || '');
-    const locEscaped = escapeAppleScriptString(event.location || '');
+    const locTrimmed = (event.location || '').trim();
+    const shouldAddRoomToTitle =
+      (event.includeRoomInTitle ?? true) &&
+      locTrimmed !== '' &&
+      !event.title.toLowerCase().includes(locTrimmed.toLowerCase());
+
+    const finalTitle = shouldAddRoomToTitle
+      ? `${event.title} (${locTrimmed})`
+      : (event.title || 'Untitled Event');
+
+    const descParts: string[] = [];
+    if (locTrimmed) {
+      descParts.push(`📍 Room: ${locTrimmed}`);
+    }
+    if (event.description && event.description.trim()) {
+      descParts.push(event.description.trim());
+    }
+    const finalDescription = descParts.join('\n\n');
+
+    const titleEscaped = escapeAppleScriptString(finalTitle);
+    const descEscaped = escapeAppleScriptString(finalDescription);
+    const locEscaped = escapeAppleScriptString(locTrimmed);
     const calEscaped = escapeAppleScriptString(calendarName);
 
     const isAllDay = !!event.allDay;

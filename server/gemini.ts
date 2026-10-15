@@ -17,6 +17,71 @@ function sanitizeModelName(model?: string): string {
   return model;
 }
 
+/**
+ * Intelligent room & location extractor and cleaner.
+ * Ensures classroom numbers, lecture halls, buildings, and zoom links
+ * are extracted into the `location` field and not lost or buried in the title.
+ */
+export function normalizeAndExtractRooms(events: ExtractedEventRaw[]): ExtractedEventRaw[] {
+  return events.map((ev) => {
+    let title = (ev.title || '').trim();
+    let location = (ev.location || '').trim();
+    let description = (ev.description || '').trim();
+
+    // Pattern 1: Title ends with room notation in parentheses/brackets or after dash/colon
+    // e.g., "Linear Algebra (Hörsaal 2)", "Math - Raum B104", "CS 101 [Room 304]", "Physik | HS 1"
+    const titleRoomMatch = title.match(
+      /(.*?)\s*[\(\[\-–•|]\s*(?:in\s+)?(Raum|Room|Rm\.?|Hörsaal|HS|Audimax|Gebäude|Geb\.|SR|Seminarraum|Labor|Lab|Bldg|Building)\s*[:#.]?\s*([A-Za-z0-9.\-\/ ]+?)[\)\]]?$/i
+    );
+
+    if (titleRoomMatch) {
+      const cleanTitle = titleRoomMatch[1].trim();
+      const detectedRoomPrefix = titleRoomMatch[2].trim();
+      const detectedRoomCode = titleRoomMatch[3].trim();
+      const detectedRoom = `${detectedRoomPrefix} ${detectedRoomCode}`.replace(/\s+/g, ' ');
+
+      if (cleanTitle) {
+        title = cleanTitle;
+      }
+      if (!location) {
+        location = detectedRoom;
+      }
+    }
+
+    // Pattern 2: Title has inline room code without brackets (e.g. "Mathe I HS 3", "Physik Raum 101")
+    if (!location) {
+      const inlineMatch = title.match(
+        /(.*?)\s+(Raum|Room|Rm\.?|Hörsaal|HS|Audimax|Gebäude|Geb\.|SR|Seminarraum|Labor|Lab)\s*[:#.]?\s*([A-Za-z0-9.\-\/]+)$/i
+      );
+      if (inlineMatch && inlineMatch[1].trim()) {
+        title = inlineMatch[1].trim();
+        location = `${inlineMatch[2]} ${inlineMatch[3]}`.trim();
+      }
+    }
+
+    // Pattern 3: Description has room notation
+    if (!location && description) {
+      const descMatch = description.match(
+        /(?:(?:in|at|room|raum|hörsaal|hs|audimax|geb\.|gebäude|sr|seminarraum)\s*[:#.]?\s*([A-Za-z0-9.\-\/ ]+))/i
+      );
+      if (descMatch) {
+        location = descMatch[0].trim();
+      }
+    }
+
+    // Clean up excessive whitespace
+    title = title.replace(/\s+/g, ' ');
+    location = location.replace(/\s+/g, ' ');
+
+    return {
+      ...ev,
+      title,
+      location,
+      description,
+    };
+  });
+}
+
 export async function parseScheduleWithGemini(
   base64Data: string,
   mimeType: string = 'image/png',
@@ -108,30 +173,43 @@ export async function parseScheduleWithGemini(
   }
 
   const systemPrompt = `You are a high-accuracy visual calendar & schedule parser using Gemini 3.8.
-Analyze this image (which could be a timetable, calendar screenshot, work shift schedule, syllabus, conference program, or hand-written/printed schedule).
+Analyze this image (which could be a university/college timetable, school schedule, work shift roster, calendar screenshot, syllabus, conference program, or hand-written/printed schedule).
 
 CURRENT REFERENCE DATE: ${refDate} (Today's date).
 If the image references days of the week like "Monday", "Tue", "Wednesday", or month names without a full year, calculate the corresponding ISO date 'YYYY-MM-DD' assuming the closest date starting from or around ${refDate}.
 
-Extract all individual events, classes, meetings, shifts, or appointments from the image.
+CRITICAL INSTRUCTIONS FOR ROOMS & LOCATIONS:
+Timetables and schedule screenshots almost ALWAYS specify a classroom, lecture hall, room code, lab, or building inside each cell or event block.
+Examine each cell carefully for room indicators:
+- German/European terms: "Raum", "R.", "Zimmer", "Hörsaal", "HS", "Audimax", "Gebäude", "Geb.", "Seminarraum", "SR", "Labor", "Lab" (e.g. "Hörsaal 3", "HS 2", "Raum B.104", "R. 0.12", "Geb. 50.34", "Audimax", "SR 2")
+- English terms: "Room", "Rm.", "Classroom", "Hall", "Lecture Hall", "Building", "Bldg", "Auditorium", "Lab" (e.g. "Room 204", "Rm 3B", "Hall C", "Lab 4")
+- Alphanumeric room codes: e.g. "A101", "B2.04", "C-01", "H3", "0.12"
+- Virtual locations: "Zoom", "Teams", "Google Meet", "Online"
+
+RULES:
+1. ALWAYS extract the classroom, lecture hall, or room number into the "location" field. NEVER leave "location" empty if any room or building code appears in the cell.
+2. Put the clean subject/event name in "title" (e.g. "Linear Algebra", "Wirtschaftsinformatik", "CS 101").
+3. Put the room/building in "location" (e.g. "Hörsaal 2", "Raum B104", "Room 301").
+4. If a professor or instructor is listed (e.g. "Prof. Dr. Schmidt", "Dr. Weber"), put them in "description".
+5. Ensure times are in 24-hour HH:mm format. If end time is not stated, assume 60 minutes after start time.
+
 Respond ONLY with a valid JSON object matching this schema:
 {
   "summary": "Brief 1-sentence description of the schedule detected",
   "events": [
     {
-      "title": "Clear event name/summary",
+      "title": "Clear event or subject name",
       "startDate": "YYYY-MM-DD",
       "startTime": "HH:mm in 24h format (e.g. 09:00, 14:30), or empty string if allDay",
       "endDate": "YYYY-MM-DD",
       "endTime": "HH:mm in 24h format (e.g. 10:15, 17:00), or empty string if allDay",
       "allDay": false,
-      "location": "Room, zoom link, address, building, or empty string",
-      "description": "Additional notes, professor/speaker, topic, or preparation details",
-      "category": "Work | Lecture | Meeting | Study | Personal | Health | Shift | Other"
+      "location": "Room, classroom, lecture hall, building, or zoom link (e.g. 'Hörsaal 3', 'Raum B104', 'Room 201')",
+      "description": "Professor/instructor, topic, notes, or course code",
+      "category": "Lecture | Work | Meeting | Study | Personal | Health | Shift | Other"
     }
   ]
-}
-Ensure times are always in 24-hour HH:mm format. If end time is not stated, assume 60 minutes after start time.`;
+}`;
 
   const extractAndParseJSON = (text: string) => {
     const cleaned = text
@@ -198,10 +276,12 @@ Ensure times are always in 24-hour HH:mm format. If end time is not stated, assu
 
       if (rawText) {
         const parsed = extractAndParseJSON(rawText);
+        const rawEvents: ExtractedEventRaw[] = parsed.events || [];
+        const normalizedEvents = normalizeAndExtractRooms(rawEvents);
         return {
           isDemo: false,
           rawSummary: parsed.summary || 'Extracted events with Gemini 3.8 Interactions API',
-          events: parsed.events || [],
+          events: normalizedEvents,
         };
       }
     }
@@ -256,10 +336,12 @@ Ensure times are always in 24-hour HH:mm format. If end time is not stated, assu
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
           const parsed = extractAndParseJSON(text);
+          const rawEvents: ExtractedEventRaw[] = parsed.events || [];
+          const normalizedEvents = normalizeAndExtractRooms(rawEvents);
           return {
             isDemo: false,
             rawSummary: parsed.summary || 'Extracted events from schedule',
-            events: parsed.events || [],
+            events: normalizedEvents,
           };
         }
       }

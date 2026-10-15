@@ -9,6 +9,7 @@ export interface NotionSyncEvent {
   location?: string;
   description?: string;
   category?: string;
+  includeRoomInTitle?: boolean;
 }
 
 export function cleanDatabaseId(rawId: string): string {
@@ -115,6 +116,8 @@ export async function addEventToNotion(
     let notesKey = matchedProps?.notesKey || 'Notes';
     let locationKey = matchedProps?.locationKey;
 
+    const locTrimmed = (event.location || '').trim();
+
     // Format ISO date strings
     let startDateStr = event.startDate;
     let endDateStr = event.endDate || event.startDate;
@@ -133,12 +136,21 @@ export async function addEventToNotion(
       }
     }
 
+    const shouldAddRoomToTitle =
+      (event.includeRoomInTitle ?? true) &&
+      locTrimmed !== '' &&
+      !event.title.toLowerCase().includes(locTrimmed.toLowerCase());
+
+    const finalTitle = shouldAddRoomToTitle
+      ? `${event.title} (${locTrimmed})`
+      : (event.title || 'Untitled Event');
+
     const propertiesPayload: any = {
       [titleKey]: {
         title: [
           {
             text: {
-              content: event.title || 'Untitled Event',
+              content: finalTitle,
             },
           },
         ],
@@ -151,24 +163,35 @@ export async function addEventToNotion(
       },
     };
 
-    if (notesKey && event.description) {
+    // Notes / Description formatting
+    const descParts: string[] = [];
+    // If Notion DB has no location column, preserve the room in notes so it's never lost!
+    if (!locationKey && locTrimmed) {
+      descParts.push(`📍 Room: ${locTrimmed}`);
+    }
+    if (event.description && event.description.trim()) {
+      descParts.push(event.description.trim());
+    }
+
+    if (notesKey && descParts.length > 0) {
       propertiesPayload[notesKey] = {
         rich_text: [
           {
             text: {
-              content: event.description.slice(0, 2000),
+              content: descParts.join('\n\n').slice(0, 2000),
             },
           },
         ],
       };
     }
 
-    if (locationKey && event.location) {
+    // If Notion DB HAS a location column
+    if (locationKey && locTrimmed) {
       propertiesPayload[locationKey] = {
         rich_text: [
           {
             text: {
-              content: event.location.slice(0, 2000),
+              content: locTrimmed.slice(0, 2000),
             },
           },
         ],
@@ -211,10 +234,10 @@ export async function addBatchEventsToNotion(
     const res = await addEventToNotion(apiKey, databaseId, event, matchedProps);
     results.push({
       id: event.id,
-      ...res,
+      success: res.success,
+      pageId: res.pageId,
+      error: res.error,
     });
-    // Brief sleep to avoid hitting Notion rate limit
-    await new Promise(r => setTimeout(r, 250));
   }
   return results;
 }

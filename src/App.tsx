@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
 import { Header } from './components/Header';
 import { ImageDropzone } from './components/ImageDropzone';
 import { EventsPreview } from './components/EventsPreview';
@@ -8,34 +9,26 @@ import { SettingsModal } from './components/SettingsModal';
 import { SampleSchedulesModal } from './components/SampleSchedulesModal';
 import { TipModal } from './components/TipModal';
 import { Toast, ToastMessage } from './components/Toast';
-import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
-import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart, ShieldCheck, Lock } from 'lucide-react';
+import { ShieldCheck, Calendar as CalendarIcon, Coffee, Lock, MapPin } from 'lucide-react';
 
-const LOCAL_STORAGE_KEY = 'planer_user_settings_v1';
+const STORAGE_KEY = 'planer_user_settings_v1';
 const DEFAULT_KOFI_URL = 'https://ko-fi.com/f312s';
+const ROOM_TITLE_STORAGE_KEY = 'planer_include_room_in_title';
 
 export function App() {
+  // Client-side settings state (saved strictly to localStorage)
   const [settings, setSettings] = useState<AppSettings>(() => {
-    // 1. Initialize from local browser storage if available
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const donUrl = (!parsed.donationUrl || parsed.donationUrl === 'https://ko-fi.com')
-          ? DEFAULT_KOFI_URL
-          : parsed.donationUrl;
-        return {
-          geminiApiKey: parsed.geminiApiKey || '',
-          geminiModel: parsed.geminiModel || 'gemini-3.8-flash',
-          notionApiKey: parsed.notionApiKey || '',
-          notionDatabaseId: parsed.notionDatabaseId || '',
-          defaultAppleCalendar: parsed.defaultAppleCalendar || 'Privat',
-          defaultDurationMinutes: parsed.defaultDurationMinutes || 60,
-          donationUrl: donUrl,
-        };
+        if (!parsed.donationUrl || parsed.donationUrl === 'https://ko-fi.com') {
+          parsed.donationUrl = DEFAULT_KOFI_URL;
+        }
+        return parsed;
       }
     } catch (e) {
-      console.error('Error reading localStorage:', e);
+      console.error('Error loading settings from localStorage:', e);
     }
     return {
       geminiApiKey: '',
@@ -57,6 +50,23 @@ export function App() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSyncingApple, setIsSyncingApple] = useState(false);
   const [isSyncingNotion, setIsSyncingNotion] = useState(false);
+
+  // Preference: Show room in title for Apple Calendar glance view
+  const [includeRoomInTitle, setIncludeRoomInTitle] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(ROOM_TITLE_STORAGE_KEY);
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleIncludeRoomInTitle = (val: boolean) => {
+    setIncludeRoomInTitle(val);
+    try {
+      localStorage.setItem(ROOM_TITLE_STORAGE_KEY, JSON.stringify(val));
+    } catch {}
+  };
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSamplesOpen, setIsSamplesOpen] = useState(false);
@@ -108,13 +118,11 @@ export function App() {
 
             const merged: AppSettings = {
               ...prev,
-              // Keep user's private key from localStorage, fall back to server key if running locally
               geminiApiKey: prev.geminiApiKey || cfg.geminiApiKey || '',
               geminiModel: prev.geminiModel || chosenModel,
               notionApiKey: prev.notionApiKey || cfg.notionApiKey || '',
               notionDatabaseId: prev.notionDatabaseId || cfg.notionDatabaseId || '',
               defaultAppleCalendar: prev.defaultAppleCalendar || cfg.defaultAppleCalendar || 'Privat',
-              // The creator's donation URL comes from the server environment
               donationUrl: serverDonation,
             };
             setHasGeminiKey(!!merged.geminiApiKey || !!cfg.hasGeminiApiKey);
@@ -180,19 +188,22 @@ export function App() {
       }
 
       const data = await res.json();
-      setEvents(data.events || []);
+      const extractedEvents: CalendarEvent[] = data.events || [];
+      setEvents(extractedEvents);
+
+      const roomsCount = extractedEvents.filter((e) => e.location && e.location.trim().length > 0).length;
 
       if (data.isDemo) {
         addToast(
           'info',
           'Demo Extraction Loaded',
-          'Add your free Gemini API Key in Settings to parse personal custom schedule images!'
+          `Sample schedule loaded with ${roomsCount} detected rooms. Add your free Gemini API Key in Settings to parse personal custom schedule images!`
         );
       } else {
         addToast(
           'success',
-          `Parsed ${data.events?.length || 0} Events`,
-          data.rawSummary || 'Schedule extracted successfully'
+          `Parsed ${extractedEvents.length} Events (${roomsCount} Rooms Detected)`,
+          data.rawSummary || 'Schedule extracted successfully with room numbers mapped!'
         );
       }
     } catch (err: any) {
@@ -214,6 +225,7 @@ export function App() {
         body: JSON.stringify({
           events: selected,
           filename: 'planer-schedule.ics',
+          includeRoomInTitle,
         }),
       });
 
@@ -230,7 +242,7 @@ export function App() {
       window.URL.revokeObjectURL(url);
 
       if (triggerToast) {
-        addToast('success', 'iCalendar Exported', 'Open the downloaded .ics to add directly to Apple or Google Calendar.');
+        addToast('success', 'iCalendar Exported', 'Open the downloaded .ics to add directly to Apple or Google Calendar with all rooms intact.');
       }
     } catch (err: any) {
       addToast('error', 'Export Error', err.message);
@@ -261,7 +273,7 @@ export function App() {
       addToast(
         'success',
         'Opening in Apple Calendar!',
-        `Exported ${selected.length} events. Tap "Add All" in the Calendar prompt to import!`
+        `Exported ${selected.length} events with classrooms/rooms. Tap "Add All" in the Calendar prompt to import!`
       );
       setTimeout(() => {
         setTipModalState({
@@ -282,6 +294,7 @@ export function App() {
         body: JSON.stringify({
           events: selected,
           calendarName: settings.defaultAppleCalendar,
+          includeRoomInTitle,
         }),
       });
 
@@ -298,7 +311,7 @@ export function App() {
         addToast(
           'success',
           'Opening in Apple Calendar!',
-          `Exported ${selected.length} events to Apple Calendar (.ics).`
+          `Exported ${selected.length} events with rooms to Apple Calendar (.ics).`
         );
         setTimeout(() => {
           setTipModalState({
@@ -376,6 +389,7 @@ export function App() {
           events: selected,
           apiKey: settings.notionApiKey || undefined,
           databaseId: settings.notionDatabaseId || undefined,
+          includeRoomInTitle,
         }),
       });
 
@@ -428,21 +442,15 @@ export function App() {
     }
   };
 
-  // Sync to BOTH
+  // Sync to Both Apple Calendar and Notion
   const handleSyncBoth = async () => {
     await handleSyncApple();
     if (notionReady) {
       await handleSyncNotion();
-    } else {
-      addToast(
-        'info',
-        'Apple Calendar synced!',
-        'To also sync with Notion, configure your Notion Database in Settings.'
-      );
     }
   };
 
-  // Event list modifiers
+  // Events mutations
   const handleToggleSelect = (id: string) => {
     setEvents((prev) =>
       prev.map((e) => (e.id === id ? { ...e, selected: !e.selected } : e))
@@ -450,8 +458,8 @@ export function App() {
   };
 
   const handleToggleSelectAll = () => {
-    const allSelected = events.every((e) => e.selected);
-    setEvents((prev) => prev.map((e) => ({ ...e, selected: !allSelected })));
+    const anyUnselected = events.some((e) => !e.selected);
+    setEvents((prev) => prev.map((e) => ({ ...e, selected: anyUnselected })));
   };
 
   const handleUpdateEvent = (id: string, updates: Partial<CalendarEvent>) => {
@@ -462,39 +470,47 @@ export function App() {
 
   const handleDeleteEvent = (id: string) => {
     setEvents((prev) => prev.filter((e) => e.id !== id));
+    addToast('info', 'Event Removed');
   };
 
   const handleAddEvent = () => {
     const today = new Date().toISOString().slice(0, 10);
     const newEvent: CalendarEvent = {
-      id: `ev-${Date.now()}`,
+      id: `ev-manual-${Date.now()}`,
       title: 'New Calendar Event',
       startDate: today,
-      startTime: '09:00',
+      startTime: '10:00',
       endDate: today,
-      endTime: '10:00',
+      endTime: '11:00',
       allDay: false,
       location: '',
       description: '',
-      category: 'Work',
+      category: 'Lecture',
       selected: true,
-      syncStatus: { apple: 'idle', notion: 'idle' },
+      syncStatus: {
+        apple: 'idle',
+        notion: 'idle',
+      },
     };
     setEvents((prev) => [newEvent, ...prev]);
+    addToast('success', 'Event Added', 'Customize its title, time, and room details.');
   };
 
-  // Select Sample Schedule
-  const handleSelectSample = async (imagePath: string, name: string) => {
+  // Sample schedule selection
+  const handleSelectSample = async (samplePath: string, name: string) => {
     try {
-      const res = await fetch(imagePath);
+      const res = await fetch(samplePath);
       const blob = await res.blob();
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
         setCurrentImageBase64(base64);
-        setCurrentMimeType('image/svg+xml');
+        setCurrentMimeType('image/png');
         setCurrentImageName(name);
-        handleExtract(new Date().toISOString().slice(0, 10), base64, 'image/svg+xml');
+        setIsSamplesOpen(false);
+
+        const refDate = new Date().toISOString().slice(0, 10);
+        handleExtract(refDate, base64, 'image/png');
       };
       reader.readAsDataURL(blob);
     } catch (e: any) {
@@ -502,16 +518,14 @@ export function App() {
     }
   };
 
-  // Save settings: Persist safely in local browser storage
+  // Save settings safely in localStorage
   const handleSaveSettings = async (newSettings: AppSettings) => {
+    setSettings(newSettings);
     try {
-      // 1. Always save into user's own local browser storage (100% private, never leaks to server)
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newSettings));
-      setSettings(newSettings);
-      if (newSettings.geminiApiKey) setHasGeminiKey(true);
-      if (newSettings.notionApiKey && newSettings.notionDatabaseId) setNotionReady(true);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+      setHasGeminiKey(!!newSettings.geminiApiKey);
+      setNotionReady(!!(newSettings.notionApiKey && newSettings.notionDatabaseId));
 
-      // 2. If running on local server, also update local config
       if (!isCloud) {
         fetch('/api/config', {
           method: 'POST',
@@ -584,21 +598,26 @@ export function App() {
             Turn Any Schedule Image into Calendar Events
           </h2>
           <p className="text-sm text-slate-400">
-            Drop a screenshot of a class timetable, shift roster, or meeting agenda. Planer extracts every event and ports them directly into <b className="text-slate-200">Apple Calendar</b> and <b className="text-slate-200">Notion</b> in seconds.
+            Drop a screenshot of a class timetable, shift roster, or meeting agenda. Planer extracts every event, captures classrooms &amp; rooms, and ports them directly into <b className="text-slate-200">Apple Calendar</b> and <b className="text-slate-200">Notion</b> in seconds.
           </p>
 
-          {/* Privacy Trust Indicators */}
+          {/* Privacy & Feature Trust Indicators */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pt-1 text-[11px] text-slate-400">
             <span className="flex items-center gap-1 text-slate-300">
               <Lock className="w-3 h-3 text-emerald-400" />
               <span>No image or schedule data is kept</span>
             </span>
-            <span>•</span>
+            <span>&bull;</span>
             <span className="flex items-center gap-1 text-slate-300">
               <ShieldCheck className="w-3 h-3 text-emerald-400" />
               <span>Keys stay in your browser only</span>
             </span>
-            <span>•</span>
+            <span>&bull;</span>
+            <span className="flex items-center gap-1 text-amber-400 font-medium">
+              <MapPin className="w-3 h-3 text-amber-400" />
+              <span>Classrooms &amp; Rooms Detected</span>
+            </span>
+            <span>&bull;</span>
             <span className="text-slate-400">Zero Tracking / No DB</span>
           </div>
         </div>
@@ -633,6 +652,8 @@ export function App() {
             isSyncingApple={isSyncingApple}
             isSyncingNotion={isSyncingNotion}
             notionReady={notionReady}
+            includeRoomInTitle={includeRoomInTitle}
+            onToggleIncludeRoomInTitle={handleToggleIncludeRoomInTitle}
             onSyncApple={handleSyncApple}
             onSyncNotion={handleSyncNotion}
             onSyncBoth={handleSyncBoth}
@@ -669,8 +690,8 @@ export function App() {
       <footer className="border-t border-slate-800/80 bg-slate-950/80 py-6 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex flex-col sm:flex-row items-center gap-2 text-center sm:text-left">
-            <p>Planer — Instant Schedule Importer for Apple Calendar &amp; Notion</p>
-            <span className="hidden sm:inline text-slate-700">•</span>
+            <p>Planer &mdash; Instant Schedule Importer for Apple Calendar &amp; Notion</p>
+            <span className="hidden sm:inline text-slate-700">&bull;</span>
             <span className="text-[11px] text-emerald-400/90 flex items-center gap-1 font-medium">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Zero Data Retention: We do not store or keep any user data</span>
@@ -686,7 +707,7 @@ export function App() {
               <Coffee className="w-3.5 h-3.5" />
               <span>Buy me a coffee on Ko-fi</span>
             </a>
-            <span>•</span>
+            <span>&bull;</span>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="hover:text-slate-300 transition"
@@ -720,9 +741,9 @@ export function App() {
       <TipModal
         isOpen={tipModalState.isOpen}
         onClose={() => setTipModalState((prev) => ({ ...prev, isOpen: false }))}
-        donationUrl={settings.donationUrl}
         syncedCount={tipModalState.syncedCount}
         destination={tipModalState.destination}
+        donationUrl={settings.donationUrl || DEFAULT_KOFI_URL}
       />
     </div>
   );

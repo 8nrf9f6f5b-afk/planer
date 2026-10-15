@@ -2,7 +2,7 @@ import React from 'react';
 import { CalendarEvent } from '../types';
 import { 
   Calendar, Clock, MapPin, AlignLeft, Trash2, Plus, 
-  CheckSquare, Square, CheckCircle2, AlertCircle, RefreshCw, Tag
+  CheckSquare, Square, CheckCircle2, AlertCircle, RefreshCw, Tag, Sparkles
 } from 'lucide-react';
 
 interface EventsPreviewProps {
@@ -51,7 +51,7 @@ export const EventsPreview: React.FC<EventsPreviewProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Review event dates and times. Click any field to edit before porting.
+            Review event dates, times, and detected classrooms/rooms. Click any field to edit before porting.
           </p>
         </div>
 
@@ -82,8 +82,9 @@ export const EventsPreview: React.FC<EventsPreviewProps> = ({
 
       {/* Events List */}
       <div className="space-y-4">
-        {events.map((event, index) => {
+        {events.map((event) => {
           const catClass = CATEGORY_COLORS[event.category || 'Other'] || CATEGORY_COLORS.Other;
+          const hasLocation = Boolean(event.location && event.location.trim());
 
           return (
             <div
@@ -110,7 +111,7 @@ export const EventsPreview: React.FC<EventsPreviewProps> = ({
 
                 {/* Event Details Form */}
                 <div className="flex-1 space-y-3">
-                  {/* Title & Category Row */}
+                  {/* Title & Category & Room Badge Row */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <input
                       type="text"
@@ -119,6 +120,17 @@ export const EventsPreview: React.FC<EventsPreviewProps> = ({
                       placeholder="Event Title..."
                       className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-100 focus:outline-none focus:border-fuchsia-500"
                     />
+
+                    {/* Detected Room Badge (Glance view) */}
+                    {hasLocation && (
+                      <div
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-300 shrink-0"
+                        title="Room will be imported into Apple Calendar location & title"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{event.location}</span>
+                      </div>
+                    )}
 
                     {/* Category input/selector */}
                     <div className="flex items-center gap-1.5">
@@ -191,26 +203,36 @@ export const EventsPreview: React.FC<EventsPreviewProps> = ({
 
                   {/* Location & Notes Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    {/* Location */}
-                    <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    {/* Room / Location */}
+                    <div className={`flex items-center gap-2 rounded-lg px-3 py-2 border transition ${
+                      hasLocation
+                        ? 'bg-amber-500/5 border-amber-500/30'
+                        : 'bg-slate-900 border-slate-800'
+                    }`}>
+                      <MapPin className={`w-3.5 h-3.5 shrink-0 ${hasLocation ? 'text-amber-400' : 'text-slate-400'}`} />
+                      <span className={`text-[11px] font-semibold shrink-0 ${hasLocation ? 'text-amber-400' : 'text-slate-400'}`}>
+                        Room / Loc:
+                      </span>
                       <input
                         type="text"
                         value={event.location || ''}
                         onChange={(e) => onUpdateEvent(event.id, { location: e.target.value })}
-                        placeholder="Location, Room or URL..."
-                        className="bg-transparent text-slate-200 focus:outline-none w-full"
+                        placeholder="e.g. Hörsaal 3, Raum B104, Room 201, Zoom..."
+                        className="bg-transparent text-slate-200 focus:outline-none w-full font-medium"
                       />
                     </div>
 
                     {/* Description */}
-                    <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
                       <AlignLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="text-[11px] font-semibold text-slate-400 shrink-0">
+                        Notes:
+                      </span>
                       <input
                         type="text"
                         value={event.description || ''}
                         onChange={(e) => onUpdateEvent(event.id, { description: e.target.value })}
-                        placeholder="Notes, professor, description..."
+                        placeholder="Professor, course code, notes..."
                         className="bg-transparent text-slate-200 focus:outline-none w-full"
                       />
                     </div>
@@ -256,11 +278,11 @@ export const EventsPreview: React.FC<EventsPreviewProps> = ({
                   )}
                 </div>
 
-                {/* Delete button */}
+                {/* Delete Button */}
                 <button
                   type="button"
                   onClick={() => onDeleteEvent(event.id)}
-                  className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                  className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition"
                   title="Remove this event"
                 >
                   <Trash2 className="w-4 h-4" />
