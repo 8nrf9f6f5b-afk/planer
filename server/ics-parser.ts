@@ -1,10 +1,22 @@
-import { CalendarEvent } from '../src/types/index.js';
+export interface ParsedCalendarEvent {
+  id: string;
+  title: string;
+  startDate: string;
+  startTime?: string;
+  endDate: string;
+  endTime?: string;
+  allDay: boolean;
+  location?: string;
+  description?: string;
+  category?: string;
+  selected?: boolean;
+}
 
 /**
- * Parses an iCalendar (.ics / webcal) string into CalendarEvent objects
+ * Parses an iCalendar (.ics / webcal) string into ParsedCalendarEvent objects
  */
-export function parseICSContent(icsText: string): Partial<CalendarEvent>[] {
-  const events: Partial<CalendarEvent>[] = [];
+export function parseICSContent(icsText: string): ParsedCalendarEvent[] {
+  const events: ParsedCalendarEvent[] = [];
   
   // Normalize line folding (lines beginning with whitespace are continuations)
   const unfolded = icsText.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
@@ -99,11 +111,12 @@ function parseIcsDate(rawDateStr?: string): { date: string; time: string; allDay
   return { date: clean.slice(0, 10), time: '09:00', allDay: false };
 }
 
-function formatParsedEvent(raw: any): Partial<CalendarEvent> {
+function formatParsedEvent(raw: any): ParsedCalendarEvent {
   const start = parseIcsDate(raw.dtstart);
   const end = parseIcsDate(raw.dtend || raw.dtstart);
 
-  let title = raw.title || 'Untitled Lecture';
+  let title = (raw.title || 'Untitled Lecture').trim();
+  // Clean up prefix "Vorlesung: " if desired or keep
   let location = (raw.location || '').trim();
 
   // If location is empty, check description or title for German room identifiers (CI10, Hörsaal, Raum, etc.)
