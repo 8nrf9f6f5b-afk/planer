@@ -18,7 +18,7 @@ export const TipModal: React.FC<TipModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const url = donationUrl && donationUrl.trim() !== '' ? donationUrl : 'https://ko-fi.com';
+  const url = donationUrl && donationUrl.trim() !== '' ? donationUrl : 'https://ko-fi.com/f312s';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">

@@ -32,7 +32,7 @@ app.get('/api/config', (req, res) => {
     notionDatabaseId: config.notionDatabaseId,
     defaultAppleCalendar: config.defaultAppleCalendar,
     defaultDurationMinutes: config.defaultDurationMinutes,
-    donationUrl: config.donationUrl || 'https://ko-fi.com',
+    donationUrl: config.donationUrl || 'https://ko-fi.com/f312s',
     isCloud,
   });
 });

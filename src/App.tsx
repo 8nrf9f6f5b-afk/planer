@@ -12,6 +12,7 @@ import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
 import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart, ShieldCheck, Lock } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'planer_user_settings_v1';
+const DEFAULT_KOFI_URL = 'https://ko-fi.com/f312s';
 
 export function App() {
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -20,6 +21,9 @@ export function App() {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const donUrl = (!parsed.donationUrl || parsed.donationUrl === 'https://ko-fi.com')
+          ? DEFAULT_KOFI_URL
+          : parsed.donationUrl;
         return {
           geminiApiKey: parsed.geminiApiKey || '',
           geminiModel: parsed.geminiModel || 'gemini-3.8-flash',
@@ -27,7 +31,7 @@ export function App() {
           notionDatabaseId: parsed.notionDatabaseId || '',
           defaultAppleCalendar: parsed.defaultAppleCalendar || 'Privat',
           defaultDurationMinutes: parsed.defaultDurationMinutes || 60,
-          donationUrl: parsed.donationUrl || '',
+          donationUrl: donUrl,
         };
       }
     } catch (e) {
@@ -40,7 +44,7 @@ export function App() {
       notionDatabaseId: '',
       defaultAppleCalendar: 'Privat',
       defaultDurationMinutes: 60,
-      donationUrl: '',
+      donationUrl: DEFAULT_KOFI_URL,
     };
   });
 
@@ -98,6 +102,10 @@ export function App() {
           setIsCloud(!!cfg.isCloud);
 
           setSettings((prev) => {
+            const serverDonation = (!cfg.donationUrl || cfg.donationUrl === 'https://ko-fi.com')
+              ? DEFAULT_KOFI_URL
+              : cfg.donationUrl;
+
             const merged: AppSettings = {
               ...prev,
               // Keep user's private key from localStorage, fall back to server key if running locally
@@ -107,7 +115,7 @@ export function App() {
               notionDatabaseId: prev.notionDatabaseId || cfg.notionDatabaseId || '',
               defaultAppleCalendar: prev.defaultAppleCalendar || cfg.defaultAppleCalendar || 'Privat',
               // The creator's donation URL comes from the server environment
-              donationUrl: cfg.donationUrl || 'https://ko-fi.com',
+              donationUrl: serverDonation,
             };
             setHasGeminiKey(!!merged.geminiApiKey || !!cfg.hasGeminiApiKey);
             setNotionReady(!!(merged.notionApiKey && merged.notionDatabaseId));
@@ -548,7 +556,7 @@ export function App() {
     return data;
   };
 
-  const supportLink = settings.donationUrl || 'https://ko-fi.com';
+  const supportLink = settings.donationUrl || DEFAULT_KOFI_URL;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-fuchsia-500 selection:text-white">

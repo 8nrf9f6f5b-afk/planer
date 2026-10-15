@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenSamples,
 }) => {
-  const donationUrl = settings.donationUrl || 'https://ko-fi.com';
+  const donationUrl = settings.donationUrl || 'https://ko-fi.com/f312s';
 
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-            title="Support this project on Ko-fi or Buy Me a Coffee"
+            title="Support this project on Ko-fi"
           >
             <Coffee className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
             <span className="hidden sm:inline">Support</span>

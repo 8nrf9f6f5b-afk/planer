@@ -88,7 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  const tipUrl = settings.donationUrl || 'https://ko-fi.com';
+  const tipUrl = settings.donationUrl || 'https://ko-fi.com/f312s';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">

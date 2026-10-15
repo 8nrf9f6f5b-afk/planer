@@ -46,7 +46,7 @@ export function loadConfig(): StoredConfig {
     notionDatabaseId: isCloud ? '' : (fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || ''),
     defaultAppleCalendar: fileConfig.defaultAppleCalendar || process.env.DEFAULT_APPLE_CALENDAR || 'Privat',
     defaultDurationMinutes: fileConfig.defaultDurationMinutes || 60,
-    donationUrl: process.env.DONATION_URL || fileConfig.donationUrl || 'https://ko-fi.com',
+    donationUrl: process.env.DONATION_URL || fileConfig.donationUrl || 'https://ko-fi.com/f312s',
   };
 }
 
