@@ -5,6 +5,7 @@ import { getAppleCalendars, addBatchEventsToAppleCalendar } from './apple-calend
 import { testNotionConnection, addBatchEventsToNotion } from './notion.js';
 import { parseScheduleWithGemini } from './gemini.js';
 import { generateICS } from './ics.js';
+import { parseICSContent } from './ics-parser.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -147,7 +148,7 @@ app.post('/api/notion/sync', async (req, res) => {
   }
 });
 
-// Gemini Parse Schedule
+// Gemini Parse Schedule Image
 app.post('/api/parse-schedule', async (req, res) => {
   try {
     const { imageBase64, mimeType, apiKey: reqApiKey, model: reqModel, referenceDate } = req.body;
@@ -185,6 +186,51 @@ app.post('/api/parse-schedule', async (req, res) => {
       events: formattedEvents,
       rawSummary: result.rawSummary,
       isDemo: result.isDemo,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Parse Calendar URL / iCal Feed (.ics / webcal / Stud.IP / NEO)
+app.post('/api/parse-url', async (req, res) => {
+  try {
+    let { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'No URL provided' });
+    }
+
+    url = url.trim();
+    if (url.startsWith('webcal://')) {
+      url = 'https://' + url.slice(9);
+    } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Planer/1.0',
+        'Accept': 'text/calendar, application/json, text/html, */*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL (${response.status}): ${response.statusText}`);
+    }
+
+    const text = await response.text();
+
+    if (text.includes('BEGIN:VCALENDAR') || text.includes('BEGIN:VEVENT')) {
+      const parsed = parseICSContent(text);
+      return res.json({
+        events: parsed,
+        rawSummary: `Imported ${parsed.length} events from calendar feed`,
+        isFeed: true,
+      });
+    }
+
+    return res.status(400).json({
+      error: 'The provided URL requires campus login or is not a direct calendar feed (.ics). In NEO (Stud.IP), click "Terminkalender abonnieren" in the left sidebar to copy your direct webcal feed URL!',
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -213,6 +213,44 @@ export function App() {
     }
   };
 
+  // Direct Calendar / Feed URL extraction (Stud.IP, NEO, webcal, etc.)
+  const handleExtractUrl = async (url: string) => {
+    setIsExtracting(true);
+    try {
+      const res = await fetch('/api/parse-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const extractedEvents: CalendarEvent[] = (data.events || []).map((ev: any, idx: number) => ({
+        ...ev,
+        id: ev.id || `ev-url-${Date.now()}-${idx}`,
+        selected: true,
+        syncStatus: { apple: 'idle', notion: 'idle' },
+      }));
+
+      setEvents(extractedEvents);
+
+      const roomsCount = extractedEvents.filter((e) => e.location && e.location.trim().length > 0).length;
+      addToast(
+        'success',
+        `Imported ${extractedEvents.length} Events (${roomsCount} Rooms)`,
+        'Extracted directly from feed. Ready to review and port to Apple Calendar & Notion!'
+      );
+    } catch (err: any) {
+      addToast('error', 'Feed Import Error', err.message);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   // Export .ics calendar file
   const handleExportICS = async (triggerToast: boolean = true) => {
     const selected = events.filter((e) => e.selected);
@@ -626,6 +664,7 @@ export function App() {
         <ImageDropzone
           onImageSelected={handleImageSelected}
           onExtract={handleExtract}
+          onExtractUrl={handleExtractUrl}
           isLoading={isExtracting}
           hasGeminiKey={hasGeminiKey}
           onOpenSettings={() => setIsSettingsOpen(true)}
