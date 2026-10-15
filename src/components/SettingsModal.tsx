@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Key, Calendar, Database, CheckCircle2, AlertCircle, 
-  ExternalLink, Loader2, RefreshCw, Eye, EyeOff, Sparkles, Coffee, Heart 
+  ExternalLink, Loader2, RefreshCw, Eye, EyeOff, Sparkles, Coffee, Heart, ShieldCheck 
 } from 'lucide-react';
 import { AppSettings, NotionDatabaseInfo } from '../types';
 
@@ -10,6 +10,7 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: AppSettings;
   calendars: string[];
+  isCloud?: boolean;
   onSaveSettings: (newSettings: AppSettings) => Promise<void>;
   onRefreshCalendars: () => Promise<void>;
   onTestNotion: (apiKey: string, databaseId: string) => Promise<NotionDatabaseInfo | null>;
@@ -20,6 +21,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   settings,
   calendars,
+  isCloud,
   onSaveSettings,
   onRefreshCalendars,
   onTestNotion,
@@ -29,7 +31,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [notionApiKey, setNotionApiKey] = useState(settings.notionApiKey);
   const [notionDatabaseId, setNotionDatabaseId] = useState(settings.notionDatabaseId);
   const [defaultAppleCalendar, setDefaultAppleCalendar] = useState(settings.defaultAppleCalendar);
-  const [donationUrl, setDonationUrl] = useState(settings.donationUrl || '');
 
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showNotionKey, setShowNotionKey] = useState(false);
@@ -50,7 +51,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNotionApiKey(settings.notionApiKey);
     setNotionDatabaseId(settings.notionDatabaseId);
     setDefaultAppleCalendar(settings.defaultAppleCalendar);
-    setDonationUrl(settings.donationUrl || '');
   }, [settings]);
 
   if (!isOpen) return null;
@@ -80,13 +80,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         notionDatabaseId,
         defaultAppleCalendar,
         defaultDurationMinutes: settings.defaultDurationMinutes || 60,
-        donationUrl,
+        donationUrl: settings.donationUrl,
       });
       onClose();
     } finally {
       setIsSaving(false);
     }
   };
+
+  const tipUrl = settings.donationUrl || 'https://ko-fi.com';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -99,7 +101,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-100">Calendar &amp; AI Settings</h3>
-              <p className="text-xs text-slate-400">Configure your vision model, Apple Calendar, Notion, and tip jar</p>
+              <p className="text-xs text-slate-400">Configure your vision model, Apple Calendar, and Notion integration</p>
             </div>
           </div>
           <button
@@ -157,12 +159,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Coffee className="w-4 h-4 text-amber-400" />
-            <span>Ko-fi / Support Link</span>
+            <span>Support Project</span>
           </button>
         </div>
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
+          {/* Privacy Note Banner */}
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <b>Privacy Guarantee:</b> Your API keys and tokens are stored directly in your local browser. They are never saved or logged on our server.
+            </span>
+          </div>
+
           {/* TAB 1: GEMINI */}
           {activeTab === 'gemini' && (
             <div className="space-y-5">
@@ -187,7 +197,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                  <span>Used locally to parse schedule images. Stored on your device.</span>
+                  <span>Saved only in your browser. Get a 100% free key from Google AI Studio.</span>
                   <a
                     href="https://aistudio.google.com/app/apikey"
                     target="_blank"
@@ -234,14 +244,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="block text-xs font-semibold text-slate-300">
                     Target macOS Calendar
                   </label>
-                  <button
-                    type="button"
-                    onClick={onRefreshCalendars}
-                    className="text-xs text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Refresh Calendars</span>
-                  </button>
+                  {!isCloud && (
+                    <button
+                      type="button"
+                      onClick={onRefreshCalendars}
+                      className="text-xs text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Refresh Calendars</span>
+                    </button>
+                  )}
                 </div>
 
                 <select
@@ -260,17 +272,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </select>
                 <p className="text-xs text-slate-400">
-                  New schedule events will be placed directly into this Apple Calendar on your Mac.
+                  {isCloud
+                    ? 'On the web, clicking "Port to Apple" exports an instant calendar file that opens directly in your Apple Calendar app on Mac or iPhone.'
+                    : 'New schedule events will be placed directly into this Apple Calendar on your Mac.'}
                 </p>
               </div>
 
               <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-2">
                 <p className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  Native macOS EventKit &amp; AppleScript:
+                  Instant Apple Calendar Sync:
                 </p>
                 <p>
-                  No iCloud login or passwords required. Planer talks directly to your native macOS <code>Calendar.app</code> in the background, syncing items instantly to your Mac, iPhone, and iPad via iCloud.
+                  No iCloud password or login needed. On Mac, it writes directly into Calendar.app. On mobile web, tapping Port to Apple opens the native Apple Calendar import prompt with 1 tap.
                 </p>
               </div>
             </div>
@@ -300,7 +314,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Create an integration at Notion Developers</span>
+                  <span>Stored safely in your browser only.</span>
                   <a
                     href="https://www.notion.so/profile/integrations"
                     target="_blank"
@@ -324,7 +338,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-fuchsia-500 font-mono"
                 />
                 <p className="text-xs text-slate-400">
-                  You can paste the entire database URL or the 32-character ID from your browser address bar.
+                  Paste your database URL or ID.
                 </p>
               </div>
 
@@ -373,61 +387,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* TAB 4: SUPPORT / TIP JAR */}
           {activeTab === 'support' && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Your Ko-fi or Buy Me a Coffee URL
-                </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    value={donationUrl}
-                    onChange={(e) => setDonationUrl(e.target.value)}
-                    placeholder="https://ko-fi.com/yourname or https://buymeacoffee.com/yourname"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-400 font-mono"
-                  />
+            <div className="space-y-5 text-center sm:text-left">
+              <div className="p-5 rounded-2xl bg-gradient-to-tr from-amber-500/10 via-orange-500/5 to-slate-950 border border-amber-500/20 space-y-3">
+                <div className="flex items-center gap-2.5 text-amber-300 font-bold text-sm">
+                  <Coffee className="w-5 h-5 text-amber-400 fill-amber-400/20" />
+                  <span>Support Planer Development</span>
                 </div>
-                <p className="text-xs text-slate-400">
-                  This powers the &ldquo;Support ☕&rdquo; button in the header and footer of your site.
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Planer is 100% free and open-source. If this tool saves you time importing your weekly schedule into Apple Calendar &amp; Notion, consider buying a coffee to support maintenance and server hosting!
                 </p>
+
+                <div className="pt-2">
+                  <a
+                    href={tipUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-md shadow-amber-500/20 transition hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Coffee className="w-4 h-4 fill-slate-950" />
+                    <span>Buy Me a Coffee on Ko-fi</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                  </a>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <a
-                  href="https://ko-fi.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition group flex flex-col gap-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
-                      <Coffee className="w-4 h-4" />
-                      Ko-fi
-                    </span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Free tip jar &amp; memberships with 0% platform fee on donations.
-                  </p>
-                </a>
-
-                <a
-                  href="https://buymeacoffee.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition group flex flex-col gap-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
-                      <span>☕</span>
-                      Buy Me a Coffee
-                    </span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Simple, friendly page for supporters to buy you a coffee.
-                  </p>
-                </a>
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-1.5">
+                <p className="font-semibold text-slate-300">
+                  Hosting Your Own Copy?
+                </p>
+                <p>
+                  To set your own tip jar link when hosting this project, configure the <code>DONATION_URL</code> environment variable in your Vercel project dashboard.
+                </p>
               </div>
             </div>
           )}

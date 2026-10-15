@@ -25,8 +25,10 @@ function sanitizeModel(model?: string): string {
 }
 
 export function loadConfig(): StoredConfig {
+  const isCloud = !!process.env.VERCEL;
+
   let fileConfig: StoredConfig = {};
-  if (fs.existsSync(CONFIG_FILE)) {
+  if (!isCloud && fs.existsSync(CONFIG_FILE)) {
     try {
       fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
     } catch (e) {
@@ -38,17 +40,23 @@ export function loadConfig(): StoredConfig {
   const model = sanitizeModel(rawModel);
 
   return {
-    geminiApiKey: fileConfig.geminiApiKey || process.env.GEMINI_API_KEY || '',
+    geminiApiKey: isCloud ? '' : (fileConfig.geminiApiKey || process.env.GEMINI_API_KEY || ''),
     geminiModel: model,
-    notionApiKey: fileConfig.notionApiKey || process.env.NOTION_API_KEY || '',
-    notionDatabaseId: fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || '',
+    notionApiKey: isCloud ? '' : (fileConfig.notionApiKey || process.env.NOTION_API_KEY || ''),
+    notionDatabaseId: isCloud ? '' : (fileConfig.notionDatabaseId || process.env.NOTION_DATABASE_ID || ''),
     defaultAppleCalendar: fileConfig.defaultAppleCalendar || process.env.DEFAULT_APPLE_CALENDAR || 'Privat',
     defaultDurationMinutes: fileConfig.defaultDurationMinutes || 60,
-    donationUrl: fileConfig.donationUrl || process.env.DONATION_URL || '',
+    donationUrl: process.env.DONATION_URL || fileConfig.donationUrl || 'https://ko-fi.com',
   };
 }
 
 export function saveConfig(newConfig: Partial<StoredConfig>): StoredConfig {
+  const isCloud = !!process.env.VERCEL;
+  if (isCloud) {
+    // In cloud/serverless, prevent writing to filesystem or persisting visitor credentials
+    return loadConfig();
+  }
+
   const current = loadConfig();
   if (newConfig.geminiModel) {
     newConfig.geminiModel = sanitizeModel(newConfig.geminiModel);

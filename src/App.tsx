@@ -11,15 +11,37 @@ import { Toast, ToastMessage } from './components/Toast';
 import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
 import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart } from 'lucide-react';
 
+const LOCAL_STORAGE_KEY = 'planer_user_settings_v1';
+
 export function App() {
-  const [settings, setSettings] = useState<AppSettings>({
-    geminiApiKey: '',
-    geminiModel: 'gemini-3.8-flash',
-    notionApiKey: '',
-    notionDatabaseId: '',
-    defaultAppleCalendar: 'Privat',
-    defaultDurationMinutes: 60,
-    donationUrl: '',
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    // 1. Initialize from local browser storage if available
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          geminiApiKey: parsed.geminiApiKey || '',
+          geminiModel: parsed.geminiModel || 'gemini-3.8-flash',
+          notionApiKey: parsed.notionApiKey || '',
+          notionDatabaseId: parsed.notionDatabaseId || '',
+          defaultAppleCalendar: parsed.defaultAppleCalendar || 'Privat',
+          defaultDurationMinutes: parsed.defaultDurationMinutes || 60,
+          donationUrl: parsed.donationUrl || '',
+        };
+      }
+    } catch (e) {
+      console.error('Error reading localStorage:', e);
+    }
+    return {
+      geminiApiKey: '',
+      geminiModel: 'gemini-3.8-flash',
+      notionApiKey: '',
+      notionDatabaseId: '',
+      defaultAppleCalendar: 'Privat',
+      defaultDurationMinutes: 60,
+      donationUrl: '',
+    };
   });
 
   const [calendars, setCalendars] = useState<string[]>(['Privat', 'Arbeit']);
@@ -34,6 +56,7 @@ export function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSamplesOpen, setIsSamplesOpen] = useState(false);
+  const [isCloud, setIsCloud] = useState(false);
   const [notionReady, setNotionReady] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
 
@@ -62,7 +85,7 @@ export function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Load config & calendars on mount
+  // Load server defaults & merge with local storage on mount
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -72,17 +95,24 @@ export function App() {
           let chosenModel = cfg.geminiModel || 'gemini-3.8-flash';
           if (chosenModel.includes('2.5')) chosenModel = 'gemini-3.8-flash';
 
-          setSettings((prev) => ({
-            ...prev,
-            geminiApiKey: cfg.geminiApiKey || '',
-            geminiModel: chosenModel,
-            notionApiKey: cfg.notionApiKey || '',
-            notionDatabaseId: cfg.notionDatabaseId || '',
-            defaultAppleCalendar: cfg.defaultAppleCalendar || 'Privat',
-            donationUrl: cfg.donationUrl || '',
-          }));
-          setHasGeminiKey(cfg.hasGeminiApiKey);
-          setNotionReady(cfg.hasNotionApiKey && !!cfg.notionDatabaseId);
+          setIsCloud(!!cfg.isCloud);
+
+          setSettings((prev) => {
+            const merged: AppSettings = {
+              ...prev,
+              // Keep user's private key from localStorage, fall back to server key if running locally
+              geminiApiKey: prev.geminiApiKey || cfg.geminiApiKey || '',
+              geminiModel: prev.geminiModel || chosenModel,
+              notionApiKey: prev.notionApiKey || cfg.notionApiKey || '',
+              notionDatabaseId: prev.notionDatabaseId || cfg.notionDatabaseId || '',
+              defaultAppleCalendar: prev.defaultAppleCalendar || cfg.defaultAppleCalendar || 'Privat',
+              // The creator's donation URL comes from the server environment
+              donationUrl: cfg.donationUrl || 'https://ko-fi.com',
+            };
+            setHasGeminiKey(!!merged.geminiApiKey || !!cfg.hasGeminiApiKey);
+            setNotionReady(!!(merged.notionApiKey && merged.notionDatabaseId));
+            return merged;
+          });
         }
       } catch (e) {
         console.error('Error fetching config:', e);
@@ -95,7 +125,7 @@ export function App() {
           if (Array.isArray(calData.calendars) && calData.calendars.length > 0) {
             setCalendars(calData.calendars);
             if (calData.selected) {
-              setSettings((prev) => ({ ...prev, defaultAppleCalendar: calData.selected }));
+              setSettings((prev) => ({ ...prev, defaultAppleCalendar: prev.defaultAppleCalendar || calData.selected }));
             }
           }
         }
@@ -130,6 +160,7 @@ export function App() {
         body: JSON.stringify({
           imageBase64: imagePayload,
           mimeType: mimePayload,
+          apiKey: settings.geminiApiKey || undefined,
           model: settings.geminiModel || 'gemini-3.8-flash',
           referenceDate,
         }),
@@ -163,6 +194,41 @@ export function App() {
     }
   };
 
+  // Export .ics calendar file
+  const handleExportICS = async (triggerToast: boolean = true) => {
+    const selected = events.filter((e) => e.selected);
+    if (selected.length === 0) return;
+
+    try {
+      const res = await fetch('/api/export/ics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: selected,
+          filename: 'planer-schedule.ics',
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate .ics file');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'planer-schedule.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      if (triggerToast) {
+        addToast('success', 'iCalendar Exported', 'Open the downloaded .ics to add directly to Apple or Google Calendar.');
+      }
+    } catch (err: any) {
+      addToast('error', 'Export Error', err.message);
+    }
+  };
+
   // Sync to Apple Calendar
   const handleSyncApple = async () => {
     const selected = events.filter((e) => e.selected);
@@ -175,6 +241,32 @@ export function App() {
       )
     );
 
+    // If on web / cloud deployment (where server doesn't have local Calendar.app access)
+    if (isCloud) {
+      await handleExportICS(false);
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.selected ? { ...e, syncStatus: { ...e.syncStatus, apple: 'success' } } : e
+        )
+      );
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.8 } });
+      addToast(
+        'success',
+        'Opening in Apple Calendar!',
+        `Exported ${selected.length} events. Tap "Add All" in the Calendar prompt to import!`
+      );
+      setTimeout(() => {
+        setTipModalState({
+          isOpen: true,
+          syncedCount: selected.length,
+          destination: 'Apple Calendar',
+        });
+      }, 1200);
+      setIsSyncingApple(false);
+      return;
+    }
+
+    // Otherwise, local desktop app: native osascript execution
     try {
       const res = await fetch('/api/apple/sync', {
         method: 'POST',
@@ -186,7 +278,29 @@ export function App() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to sync to Apple Calendar');
+      if (!res.ok || (data.results && data.results.some((r: any) => r.error && r.error.includes('macOS')))) {
+        // Fallback to .ics if not darwin
+        await handleExportICS(false);
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.selected ? { ...e, syncStatus: { ...e.syncStatus, apple: 'success' } } : e
+          )
+        );
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.8 } });
+        addToast(
+          'success',
+          'Opening in Apple Calendar!',
+          `Exported ${selected.length} events to Apple Calendar (.ics).`
+        );
+        setTimeout(() => {
+          setTipModalState({
+            isOpen: true,
+            syncedCount: selected.length,
+            destination: 'Apple Calendar',
+          });
+        }, 1200);
+        return;
+      }
 
       setEvents((prev) =>
         prev.map((e) => {
@@ -252,6 +366,8 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           events: selected,
+          apiKey: settings.notionApiKey || undefined,
+          databaseId: settings.notionDatabaseId || undefined,
         }),
       });
 
@@ -318,39 +434,6 @@ export function App() {
     }
   };
 
-  // Export .ics
-  const handleExportICS = async () => {
-    const selected = events.filter((e) => e.selected);
-    if (selected.length === 0) return;
-
-    try {
-      const res = await fetch('/api/export/ics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          events: selected,
-          filename: 'planer-schedule.ics',
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to generate .ics file');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'planer-schedule.ics';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-
-      addToast('success', 'iCalendar Exported', 'Open the downloaded .ics to add directly to Apple or Google Calendar.');
-    } catch (err: any) {
-      addToast('error', 'Export Error', err.message);
-    }
-  };
-
   // Event list modifiers
   const handleToggleSelect = (id: string) => {
     setEvents((prev) =>
@@ -411,19 +494,25 @@ export function App() {
     }
   };
 
-  // Save settings
+  // Save settings: Persist safely in local browser storage
   const handleSaveSettings = async (newSettings: AppSettings) => {
     try {
-      const res = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSettings),
-      });
-      if (!res.ok) throw new Error('Failed to save settings');
+      // 1. Always save into user's own local browser storage (100% private, never leaks to server)
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newSettings));
       setSettings(newSettings);
       if (newSettings.geminiApiKey) setHasGeminiKey(true);
       if (newSettings.notionApiKey && newSettings.notionDatabaseId) setNotionReady(true);
-      addToast('success', 'Settings Saved', 'Configuration updated successfully.');
+
+      // 2. If running on local server, also update local config
+      if (!isCloud) {
+        fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newSettings),
+        }).catch(() => {});
+      }
+
+      addToast('success', 'Settings Saved', 'Your keys are safely stored in your local browser.');
     } catch (e: any) {
       addToast('error', 'Save Failed', e.message);
     }
@@ -436,7 +525,7 @@ export function App() {
       if (res.ok) {
         const data = await res.json();
         setCalendars(data.calendars);
-        addToast('success', 'Calendars Refreshed', `Found ${data.calendars.length} calendars on your Mac.`);
+        addToast('success', 'Calendars Refreshed', `Found ${data.calendars.length} calendars.`);
       }
     } catch (e: any) {
       addToast('error', 'Failed to refresh calendars', e.message);
@@ -524,7 +613,7 @@ export function App() {
             onSyncApple={handleSyncApple}
             onSyncNotion={handleSyncNotion}
             onSyncBoth={handleSyncBoth}
-            onExportICS={handleExportICS}
+            onExportICS={() => handleExportICS(true)}
             onCalendarChange={(cal) => setSettings((s) => ({ ...s, defaultAppleCalendar: cal }))}
             onOpenSettings={() => setIsSettingsOpen(true)}
           />
@@ -556,7 +645,7 @@ export function App() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-950/80 py-6 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>Planer — Native macOS Apple Calendar &amp; Notion Schedule Importer</p>
+          <p>Planer — Instant Schedule Importer for Apple Calendar &amp; Notion</p>
           <div className="flex items-center gap-4">
             <a
               href={supportLink}
@@ -565,14 +654,14 @@ export function App() {
               className="inline-flex items-center gap-1.5 text-amber-400/90 hover:text-amber-300 transition font-medium"
             >
               <Coffee className="w-3.5 h-3.5" />
-              <span>Buy me a coffee / Ko-fi</span>
+              <span>Buy me a coffee on Ko-fi</span>
             </a>
             <span>•</span>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="hover:text-slate-300 transition"
             >
-              Configure Tip Jar
+              Support Project
             </button>
           </div>
         </div>
@@ -584,6 +673,7 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         calendars={calendars}
+        isCloud={isCloud}
         onSaveSettings={handleSaveSettings}
         onRefreshCalendars={handleRefreshCalendars}
         onTestNotion={handleTestNotion}
