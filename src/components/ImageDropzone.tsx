@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   UploadCloud, Image as ImageIcon, Sparkles, AlertCircle, 
-  Settings as SettingsIcon, Check, Calendar, ArrowRight, Loader2 
+  Settings as SettingsIcon, Check, Calendar, ArrowRight, Loader2, ShieldCheck, Lock 
 } from 'lucide-react';
 
 interface ImageDropzoneProps {
@@ -28,7 +28,7 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
 
   const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (PNG, JPG, WebP).');
+      alert('Please upload an image file (PNG, JPG, WebP, etc.)');
       return;
     }
 
@@ -41,7 +41,7 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -49,30 +49,28 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDragLeave = () => {
     setIsDragOver(false);
   };
 
-  // Global paste listener (Cmd + V)
+  // Support pasting image directly from clipboard anywhere on page
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
-      // Don't intercept paste if user is typing in an input or textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return;
-      }
+      const items = e.clipboardData?.items;
+      if (!items) return;
 
-      if (e.clipboardData && e.clipboardData.files.length > 0) {
-        const file = e.clipboardData.files[0];
-        if (file.type.startsWith('image/')) {
-          e.preventDefault();
-          processFile(file);
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processFile(file);
+            break;
+          }
         }
       }
     };
@@ -82,34 +80,34 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
   }, []);
 
   return (
-    <div className="w-full bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden transition-all duration-300 hover:border-slate-700/80">
-      {/* Decorative gradient glow */}
-      <div className="absolute -top-24 -right-24 w-72 h-72 bg-fuchsia-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-sky-600/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col gap-6">
-        {/* Top bar with quick instructions & reference date picker */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-6">
+        {/* Top Controls: Target Reference Date */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
-              <span>1. Drop or Paste Your Schedule</span>
-            </h2>
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-fuchsia-600/20 text-fuchsia-400 text-xs font-bold border border-fuchsia-500/30">
+                1
+              </span>
+              <span>Upload Schedule Screenshot</span>
+            </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Supports screenshots, photos of printed timetables, syllabus calendars, or shift rosters.
+              Paste or drop a screenshot of any timetable, syllabus, or calendar
             </p>
           </div>
 
-          {/* Reference Date Control */}
-          <div className="flex items-center gap-2 bg-slate-950/70 border border-slate-800 rounded-2xl p-1.5 self-stretch sm:self-auto">
-            <Calendar className="w-4 h-4 text-fuchsia-400 ml-2" />
-            <span className="text-xs text-slate-400 font-medium">Reference date:</span>
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 shrink-0">
+              <Calendar className="w-3.5 h-3.5 text-fuchsia-400" />
+              <span>Week Starting:</span>
+            </label>
             <input
               type="date"
               value={referenceDate}
               onChange={(e) => setReferenceDate(e.target.value)}
-              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-2.5 py-1 focus:outline-none focus:border-fuchsia-500 font-medium"
+              className="bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-fuchsia-500 font-mono shadow-inner"
             />
-            <div className="hidden lg:flex items-center gap-1 pl-1">
+            <div className="hidden sm:flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setReferenceDate(new Date().toISOString().slice(0, 10))}
@@ -162,7 +160,7 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept="image/*"
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
@@ -172,21 +170,21 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
           />
 
           {previewUrl ? (
-            <div className="flex flex-col md:flex-row items-center gap-6 w-full max-w-2xl">
-              <div className="relative group/thumb shrink-0">
+            <div className="flex flex-col items-center gap-4 w-full">
+              <div className="relative max-h-64 max-w-full overflow-hidden rounded-xl border border-slate-700 shadow-lg">
                 <img
                   src={previewUrl}
                   alt="Schedule preview"
-                  className="w-36 h-36 object-cover rounded-2xl border border-slate-700 shadow-md group-hover/thumb:border-fuchsia-500 transition"
+                  className="object-contain max-h-60 rounded-lg mx-auto"
                 />
-                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover/thumb:opacity-100 rounded-2xl flex items-center justify-center transition">
-                  <span className="text-xs text-white font-medium">Change Image</span>
+                <div className="absolute top-2 right-2 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded-lg text-[11px] font-mono text-slate-300 border border-slate-800">
+                  Click to replace image
                 </div>
               </div>
 
-              <div className="flex-1 text-center md:text-left space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-                  <Check className="w-3 h-3" />
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                  <Check className="w-3.5 h-3.5" />
                   <span>Image Loaded &amp; Ready</span>
                 </div>
                 <h4 className="text-base font-bold text-slate-100">Schedule Screenshot Attached</h4>
@@ -271,6 +269,14 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
               </>
             )}
           </button>
+        </div>
+
+        {/* Zero Data Retention Security Assurance */}
+        <div className="flex items-center justify-center gap-2 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>
+            <b className="text-slate-300">Zero Data Retention:</b> We do not keep, log, or store your images or schedule data. Extraction runs strictly in-memory.
+          </span>
         </div>
       </div>
     </div>

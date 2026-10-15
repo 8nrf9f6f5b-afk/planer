@@ -9,7 +9,7 @@ import { SampleSchedulesModal } from './components/SampleSchedulesModal';
 import { TipModal } from './components/TipModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { CalendarEvent, AppSettings, NotionDatabaseInfo } from './types';
-import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart } from 'lucide-react';
+import { Sparkles, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Coffee, Heart, ShieldCheck, Lock } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'planer_user_settings_v1';
 
@@ -567,10 +567,10 @@ export function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Hero Banner */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI-Powered Instant Schedule Ingestion</span>
+        <div className="text-center max-w-2xl mx-auto space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>100% Private &bull; Zero Data Stored &bull; Processed In-Memory</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
             Turn Any Schedule Image into Calendar Events
@@ -578,6 +578,21 @@ export function App() {
           <p className="text-sm text-slate-400">
             Drop a screenshot of a class timetable, shift roster, or meeting agenda. Planer extracts every event and ports them directly into <b className="text-slate-200">Apple Calendar</b> and <b className="text-slate-200">Notion</b> in seconds.
           </p>
+
+          {/* Privacy Trust Indicators */}
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pt-1 text-[11px] text-slate-400">
+            <span className="flex items-center gap-1 text-slate-300">
+              <Lock className="w-3 h-3 text-emerald-400" />
+              <span>No image or schedule data is kept</span>
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1 text-slate-300">
+              <ShieldCheck className="w-3 h-3 text-emerald-400" />
+              <span>Keys stay in your browser only</span>
+            </span>
+            <span>•</span>
+            <span className="text-slate-400">Zero Tracking / No DB</span>
+          </div>
         </div>
 
         {/* Step 1: Upload / Dropzone */}
@@ -645,7 +660,14 @@ export function App() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-950/80 py-6 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>Planer — Instant Schedule Importer for Apple Calendar &amp; Notion</p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 text-center sm:text-left">
+            <p>Planer — Instant Schedule Importer for Apple Calendar &amp; Notion</p>
+            <span className="hidden sm:inline text-slate-700">•</span>
+            <span className="text-[11px] text-emerald-400/90 flex items-center gap-1 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Zero Data Retention: We do not store or keep any user data</span>
+            </span>
+          </div>
           <div className="flex items-center gap-4">
             <a
               href={supportLink}
